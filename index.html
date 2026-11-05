@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#03072B">
+<script>window.BARE_Q = "(max-width: 520px), (pointer: coarse) and (max-height: 520px)";</script>
 <title>Point · Right to the point</title>
 <meta name="description" content="Point finds the most sustainable product on the shelf, and shows you where it is. Clickable prototype.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -45,10 +47,14 @@
   body.present .top { justify-content: flex-end; }
 
   @media (max-width: 900px) { .side, .foot { display: none; } }
-  @media (max-width: 520px) {
-    body { overflow: auto; }
+  /* phones (portrait) and phones held sideways: the app itself, full screen, no drawn frame */
+  @media (max-width: 520px), (pointer: coarse) and (max-height: 520px) {
+    html, body { background: #03072B; }
+    body { overflow: hidden; }
     .top { display: none; }
+    .stage { height: 100dvh; display: block; }
     .scaler { width: 100vw; height: 100dvh; transform: none !important; }
+    .side, .foot { display: none; }
     .iphone { width: 100%; height: 100%; border-radius: 0; padding: 0; box-shadow: none; background: none; }
     .iphone::before, .iphone::after, .island, .status { display: none; }
     .screen { border-radius: 0; }
@@ -89,7 +95,7 @@
 
   const scaler = document.getElementById("scaler");
   function fit() {
-    if (innerWidth <= 520) { scaler.style.transform = ""; return; }
+    if (matchMedia(window.BARE_Q).matches) { scaler.style.transform = ""; return; }
     const cap = document.body.classList.contains("present") ? 1.6 : 1;
     scaler.style.transform = `scale(${Math.min(cap, (innerHeight - 80) / 884, (innerWidth - 40) / 430)})`;
   }
