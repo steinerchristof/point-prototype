@@ -583,7 +583,8 @@ document.addEventListener("click", (e) => {
 
 // ===================== Auto-play demo (#demo, key D, or message "demo") =====================
 let playing = false;
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const PACE = 1.35; // demo speed: higher = slower
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms * PACE));
 const tapEl = document.createElement("div"); tapEl.className = "tap"; document.body.appendChild(tapEl);
 const capEl = document.createElement("div"); capEl.className = "cap"; document.body.appendChild(capEl);
 // Captions are off: the presenter explains each step. The pause keeps the pace.
