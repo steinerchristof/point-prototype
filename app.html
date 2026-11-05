@@ -586,7 +586,9 @@ let playing = false;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const tapEl = document.createElement("div"); tapEl.className = "tap"; document.body.appendChild(tapEl);
 const capEl = document.createElement("div"); capEl.className = "cap"; document.body.appendChild(capEl);
-async function cap(n, text) { capEl.classList.remove("on"); await sleep(250); capEl.innerHTML = (n ? `<b>${n}</b>` : "") + text; capEl.classList.add("on"); await sleep(900); }
+// Captions are off: the presenter explains each step. The pause keeps the pace.
+const SHOW_CAPTIONS = false;
+async function cap(n, text) { if (SHOW_CAPTIONS) { capEl.classList.remove("on"); await sleep(250); capEl.innerHTML = (n ? `<b>${n}</b>` : "") + text; capEl.classList.add("on"); await sleep(900); } else await sleep(1150); }
 const outro = document.createElement("div"); outro.className = "outro"; outro.innerHTML = "<div>Right to<br>the point.</div>"; document.body.appendChild(outro);
 async function tap(el) {
   if (!el) return;
