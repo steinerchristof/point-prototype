@@ -19,3 +19,4 @@ All photos from Wikimedia Commons, used under their Creative Commons licences. C
 - oranges-a: https://commons.wikimedia.org/wiki/File:BloodOrange.jpg
 - oranges-b: https://commons.wikimedia.org/wiki/File:Oranges_-_whole-halved-segment.jpg
 - oranges-c: https://commons.wikimedia.org/wiki/File:Navel_orange.jpg
+- shelf: https://commons.wikimedia.org/wiki/File:-2019-08-14_Fruit_and_vegtable_display,_Coop_supermarket,_Cromer.JPG

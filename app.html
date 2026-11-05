@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Point Prototype</title>
+<meta name="description" content="Point: write your shopping list, get the most sustainable product on the shelf. Clickable prototype with illustrative data.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #F4F5F7; --card: #FFFFFF; --text: #14171F; --muted: #646B78; --line: #E4E6EB; --blue: #1F6BFF; --green: #1C7C54; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 "DM Sans", -apple-system, Arial, sans-serif; }
+  .top { background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+  .top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 56px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+  .brand { display: flex; align-items: center; font-weight: 700; font-size: 22px; letter-spacing: -0.01em; }
+  .ring { width: 0.6em; height: 0.6em; border-radius: 50%; margin: 0.14em 1px 0; background: conic-gradient(from 90deg, #6E5BFF, #1F6BFF, #8FD8FF, #6E5BFF); -webkit-mask: radial-gradient(circle, transparent 40%, #000 43%); mask: radial-gradient(circle, transparent 40%, #000 43%); }
+  select { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; max-width: 55vw; }
+  h1 { font-size: 22px; font-weight: 700; margin: 24px 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  .addrow { display: flex; gap: 8px; }
+  .addrow input { flex: 1; min-width: 0; font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--card); }
+  button { font: inherit; cursor: pointer; }
+  .addrow button { border: 0; border-radius: 8px; padding: 0 18px; background: var(--text); color: #fff; font-weight: 700; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; }
+  .chip { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 3px 4px 3px 12px; font-size: 14px; display: flex; align-items: center; }
+  .chip button { border: 0; background: none; color: var(--muted); font-size: 16px; padding: 0 6px; }
+  .goals { display: flex; gap: 6px; overflow-x: auto; margin: 16px 0 4px; padding-bottom: 4px; }
+  .goal { border: 1px solid var(--line); background: var(--card); color: var(--muted); border-radius: 8px; padding: 6px 12px; white-space: nowrap; font-size: 14px; }
+  .goal.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+  section.item { margin-top: 22px; }
+  .itemhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .itemhead h2 { font-size: 17px; margin: 0; text-transform: capitalize; }
+  .itemhead span { font-size: 13px; color: var(--muted); }
+  .prod { background: var(--card); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 6px; }
+  .prod.pick { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
+  .prod.unv { opacity: .6; }
+  .line { display: flex; align-items: center; gap: 12px; padding: 10px; cursor: pointer; }
+  .ph { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; flex: none; background: #E9EBEF; }
+  .info { flex: 1; min-width: 0; }
+  .name { font-weight: 700; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .desc { font-size: 13px; color: var(--muted); }
+  .bar { height: 6px; background: #ECEEF2; border-radius: 3px; margin-top: 6px; max-width: 260px; }
+  .bar i { display: block; height: 100%; border-radius: 3px; background: #B9C0CC; }
+  .pick .bar i { background: var(--blue); }
+  .price { font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  .score { font-weight: 700; font-size: 20px; font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
+  .pill { font-size: 11px; font-weight: 700; color: #fff; background: var(--blue); border-radius: 4px; padding: 1px 6px; }
+  .pill.ghost { background: none; color: var(--muted); border: 1px solid var(--line); }
+  .why { display: none; border-top: 1px solid var(--line); padding: 10px 12px 12px; font-size: 14px; }
+  .prod.open .why { display: block; }
+  .dims { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 4px 16px; margin-bottom: 10px; }
+  .dim { display: flex; justify-content: space-between; color: var(--muted); }
+  .dim b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .proof { font-size: 13px; color: var(--green); }
+  .proof code { color: var(--muted); font-size: 12px; }
+  .verify { margin-left: 8px; border: 1px solid var(--line); background: var(--card); border-radius: 6px; font-size: 12px; padding: 3px 10px; }
+  footer { max-width: 760px; margin: 32px auto 40px; padding: 0 16px; font-size: 12px; color: var(--muted); }
+  footer a { color: var(--muted); }
+  .embed .top { padding-top: 30px; }
+  .embed footer { display: none; }
+  .embed .top select { max-width: 150px; }
+</style>
+<script>if (/embed/.test(location.search)) document.documentElement.classList.add("embed");</script>
+</head>
+<body>
+<div class="top"><div class="wrap">
+  <div class="brand" aria-label="Point">P<span class="ring"></span>int</div>
+  <select id="shop" aria-label="Shop">
+    <option>Supermarket Lugano Centro</option>
+    <option>Supermarket Bellinzona</option>
+    <option>Online shop</option>
+  </select>
+</div></div>
+
+<main class="wrap">
+  <h1>Your shopping list</h1>
+  <p class="sub">For every item, Point ranks what is on this shop's shelf by sustainability.</p>
+  <div class="addrow">
+    <input type="text" id="add" placeholder="Add an item, e.g. coffee or apples" list="cats" autocomplete="off" aria-label="Add an item">
+    <datalist id="cats"></datalist>
+    <button id="addBtn">Add</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="goals" id="goals" role="group" aria-label="What matters to you"></div>
+  <div id="results"></div>
+</main>
+
+<footer>
+  Prototype for the Point pitch, Fintech – Economics and Technology, HSG 2026. Products and scores are illustrative, not measured data.
+  Photos: Wikimedia Commons, see <a href="https://github.com/steinerchristof/point-prototype/blob/main/CREDITS.md">credits</a>.
+</footer>
+
+<script>
+const DIMS = { co2: "Climate (CO₂)", water: "Water", land: "Land use", plastic: "Packaging", energy: "Energy", km0: "Transport" };
+const GOALS = [["all", "Overall"], ["co2", "Less CO₂"], ["water", "Less water"], ["plastic", "Less plastic"], ["land", "Less land"], ["km0", "Km 0"]];
+
+// Illustrative data. Pasta "overall" matches the energy-score example in the deck.
+const DATA = {
+  pasta: [
+    { n: "Spaghetti", pr: 2.20, img: "pasta-a.jpg", d: "Durum wheat, Italy · 500 g · paper box", overall: 86.5, s: { co2: 84, water: 79, land: 82, plastic: 95, energy: 86.5, km0: 72 } },
+    { n: "Penne", pr: 1.60, img: "pasta-b.png", d: "Durum wheat, Canada · 500 g · plastic bag", overall: 77.4, s: { co2: 76, water: 81, land: 78, plastic: 55, energy: 77.4, km0: 48 } },
+    { n: "Tagliatelle", pr: 3.90, img: "pasta-c.jpg", d: "Swiss spelt, made in Switzerland · 250 g · plastic tray", overall: 81.8, s: { co2: 80, water: 85, land: 70, plastic: 58, energy: 81.8, km0: 94 } },
+    { n: "Egg pasta", pr: 2.80, img: null, d: "Origin not disclosed", overall: null },
+  ],
+  tomatoes: [
+    { n: "Tomatoes", pr: 4.20, img: "tomatoes-a.jpg", d: "Field-grown, Ticino · 1 kg · loose", overall: 88.2, s: { co2: 91, water: 74, land: 85, plastic: 98, energy: 90, km0: 97 } },
+    { n: "Cherry tomatoes", pr: 3.50, img: "tomatoes-b.jpg", d: "Heated greenhouse, Netherlands · plastic tray", overall: 61.0, s: { co2: 52, water: 88, land: 92, plastic: 40, energy: 41, km0: 45 } },
+    { n: "Roma tomatoes", pr: 2.95, img: "tomatoes-c.jpg", d: "Field-grown, Spain · plastic tray", overall: 66.7, s: { co2: 70, water: 39, land: 76, plastic: 42, energy: 78, km0: 40 } },
+    { n: "San Marzano", pr: 3.80, img: "tomatoes-d.jpg", d: "Origin not disclosed", overall: null },
+  ],
+  milk: [
+    { n: "Whole milk", pr: 1.65, img: "milk-a.jpg", d: "Swiss milk, Emmental · 1 l · returnable glass", overall: 72.3, s: { co2: 61, water: 66, land: 58, plastic: 90, energy: 74, km0: 92 } },
+    { n: "Oat drink", pr: 2.95, img: "milk-b.jpg", d: "Sweden · carton", overall: 84.9, s: { co2: 90, water: 89, land: 87, plastic: 76, energy: 81, km0: 62 } },
+  ],
+  coffee: [
+    { n: "Coffee beans", pr: 8.90, img: "coffee-a.jpg", d: "Peru, shade-grown · paper bag", overall: 69.8, s: { co2: 64, water: 61, land: 79, plastic: 70, energy: 72, km0: 30 } },
+    { n: "Instant coffee", pr: 6.50, img: "coffee-b.jpg", d: "Brazil · glass jar", overall: 58.2, s: { co2: 52, water: 55, land: 60, plastic: 68, energy: 44, km0: 28 } },
+    { n: "Ground coffee", pr: 5.95, img: "coffee-c.jpg", d: "Origin not disclosed", overall: null },
+  ],
+  oranges: [
+    { n: "Blood oranges", pr: 3.95, img: "oranges-a.jpg", d: "Sicily, Italy · 1 kg · loose", overall: 79.6, s: { co2: 80, water: 66, land: 82, plastic: 96, energy: 84, km0: 74 } },
+    { n: "Oranges", pr: 4.50, img: "oranges-b.jpg", d: "Valencia, Spain · 2 kg · net", overall: 71.2, s: { co2: 74, water: 52, land: 80, plastic: 70, energy: 79, km0: 58 } },
+    { n: "Navel oranges", pr: 3.20, img: "oranges-c.jpg", d: "South Africa · 1.5 kg · plastic bag", overall: 55.8, s: { co2: 49, water: 58, land: 78, plastic: 55, energy: 62, km0: 10 } },
+  ],
+  apples: [
+    { n: "Gala apples", pr: 3.40, img: "apples-a.jpg", d: "Thurgau, Switzerland · 1 kg · loose", overall: 90.4, s: { co2: 92, water: 86, land: 88, plastic: 99, energy: 87, km0: 96 } },
+    { n: "Pink Lady apples", pr: 4.95, img: "apples-b.jpg", d: "New Zealand · plastic bag", overall: 64.1, s: { co2: 55, water: 80, land: 84, plastic: 60, energy: 70, km0: 12 } },
+  ],
+};
+
+let list = ["pasta", "oranges", "tomatoes", "milk"];
+let goal = "all";
+const open = new Set();
+const $ = (id) => document.getElementById(id);
+$("cats").innerHTML = Object.keys(DATA).map((k) => `<option value="${k}">`).join("");
+
+const score = (p) => (p.overall === null ? null : goal === "all" ? p.overall : p.s[goal]);
+function hash(str) { let h = 0; for (const c of str) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h.toString(16).padStart(8, "0"); }
+
+function render() {
+  $("chips").innerHTML = list.map((k) => `<span class="chip">${k}<button aria-label="Remove ${k}" data-rm="${k}">×</button></span>`).join("");
+  $("goals").innerHTML = GOALS.map(([k, l]) => `<button class="goal ${k === goal ? "on" : ""}" data-goal="${k}">${l}</button>`).join("");
+  $("results").innerHTML = list.map((k) => {
+    const items = (DATA[k] || []).slice().sort((a, b) => (score(b) ?? -1) - (score(a) ?? -1));
+    if (!items.length) return `<section class="item"><div class="itemhead"><h2>${k}</h2><span>not in this shop yet</span></div></section>`;
+    return `<section class="item"><div class="itemhead"><h2>${k}</h2><span>${items.length} on the shelf</span></div>` + items.map((p, i) => {
+      const v = score(p), id = k + "|" + p.n, unv = v === null, pick = i === 0 && !unv;
+      const why = unv
+        ? `<div class="why">The producer has not shared verified data. Point shows the product, but never recommends it.</div>`
+        : `<div class="why"><div class="dims">${Object.entries(DIMS).map(([dk, dl]) => `<div class="dim">${dl}<b>${Math.round(p.s[dk])}</b></div>`).join("")}</div>
+           <span class="proof">✓ Score proven <code>0x${hash(id)}${hash(p.d)}</code></span><button class="verify" data-verify="1">Verify</button></div>`;
+      return `<div class="prod ${pick ? "pick" : ""} ${unv ? "unv" : ""} ${open.has(id) ? "open" : ""}" data-id="${id}">
+        <div class="line">${p.img ? `<img class="ph" src="img/${p.img}" alt="${p.n}" loading="lazy">` : `<div class="ph"></div>`}
+          <div class="info"><div class="name">${p.n}${pick ? `<span class="pill">Point’s pick</span>` : unv ? `<span class="pill ghost">unverified</span>` : ""}</div>
+            <div class="desc">${p.d}</div>${unv ? "" : `<div class="bar"><i style="width:${v}%"></i></div>`}</div>
+          <div><div class="score">${unv ? "–" : v.toFixed(1)}</div><div class="price">CHF ${p.pr.toFixed(2)}</div></div></div>${why}</div>`;
+    }).join("") + `</section>`;
+  }).join("");
+}
+
+function add() {
+  const k = $("add").value.trim().toLowerCase();
+  if (k && !list.includes(k)) list.push(k);
+  $("add").value = "";
+  render();
+}
+$("addBtn").onclick = add;
+$("add").addEventListener("keydown", (e) => { if (e.key === "Enter") add(); });
+document.addEventListener("click", (e) => {
+  const t = e.target;
+  if (t.dataset.rm) { list = list.filter((k) => k !== t.dataset.rm); render(); return; }
+  if (t.dataset.goal) { goal = t.dataset.goal; render(); return; }
+  if (t.dataset.verify) { t.textContent = "Checking…"; setTimeout(() => { t.textContent = "✓ Valid"; t.disabled = true; }, 600); return; }
+  const card = t.closest(".prod");
+  if (card && !t.closest(".why")) { const id = card.dataset.id; open.has(id) ? open.delete(id) : open.add(id); card.classList.toggle("open"); }
+});
+render();
+</script>
+</body>
+</html>
