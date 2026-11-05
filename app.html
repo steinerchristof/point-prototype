@@ -15,6 +15,7 @@
   html, body { margin: 0; height: 100%; }
   body { background: var(--bg); color: var(--fg); font: 300 16px/1.4 "Jost", "Century Gothic", Futura, sans-serif; overflow: hidden; }
   button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  @media (min-width: 600px) { html:not(.embed) body { max-width: 430px; margin: 0 auto; position: relative; box-shadow: 0 0 0 1px rgba(255,255,255,.08); } }
   .screen { position: absolute; inset: 0; padding: 54px 26px 28px; overflow-y: auto; display: none; background: radial-gradient(ellipse at 50% 28%, #0E1A5A 0%, var(--bg) 62%); }
   .screen.on { display: block; animation: in .25s ease; }
   @keyframes in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }

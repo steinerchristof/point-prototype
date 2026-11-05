@@ -52,7 +52,7 @@
 <body>
   <div class="top">
     <div class="mark"><i></i>POINT</div>
-    <div style="display:flex;gap:28px"><a href="#" id="play">▶ Play demo</a><a href="app.html">Open full screen</a></div>
+    <div style="display:flex;gap:28px"><a href="#" id="play">▶ Play demo</a><a href="#" id="fs">⤢ Full screen</a></div>
   </div>
 
   <div class="stage">
@@ -77,9 +77,17 @@
   function fit() {
     const s = document.getElementById("scaler");
     if (innerWidth <= 520) { s.style.transform = ""; return; }
-    s.style.transform = `scale(${Math.min(1, (innerHeight - 60) / 884, (innerWidth - 40) / 430)})`;
+    s.style.transform = `scale(${Math.min(document.fullscreenElement ? 1.5 : 1, (innerHeight - 60) / 884, (innerWidth - 40) / 430)})`;
   }
   addEventListener("resize", fit); fit();
+  const fsBtn = document.getElementById("fs");
+  fsBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+    else location.href = "app.html";
+  });
+  document.addEventListener("fullscreenchange", () => { fsBtn.textContent = document.fullscreenElement ? "✕ Exit full screen" : "⤢ Full screen"; setTimeout(fit, 50); });
   const frame = document.querySelector("iframe");
   const play = () => frame.contentWindow.postMessage("demo", "*");
   document.getElementById("play").addEventListener("click", (e) => { e.preventDefault(); play(); });
