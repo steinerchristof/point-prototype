@@ -7,25 +7,27 @@
 <meta name="description" content="Point finds the most sustainable product on the shelf, and shows you where it is. Clickable prototype.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-  :root { --bg: #01031A; --fg: #FFFFFF; --dim: rgba(255,255,255,.5); }
+  :root { --bg: #01031A; --fg: #FFFFFF; --dim: rgba(255,255,255,.74); }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
-  body { background: radial-gradient(ellipse at 50% 45%, #0B1550 0%, var(--bg) 60%); color: var(--fg); font: 300 15px/1.4 "Jost", Futura, sans-serif; overflow: hidden; }
-  .top { position: fixed; top: 28px; left: 36px; right: 36px; display: flex; justify-content: space-between; align-items: center; z-index: 3; }
-  .mark { display: flex; align-items: center; gap: 12px; letter-spacing: .5em; font-size: 14px; }
+  body { background: radial-gradient(ellipse at 50% 45%, #0B1550 0%, var(--bg) 60%); color: var(--fg); font: 300 16px/1.45 "Jost", Futura, sans-serif; overflow: hidden; }
+  .top { position: fixed; top: 24px; left: 36px; right: 36px; display: flex; justify-content: space-between; align-items: center; z-index: 3; }
+  .mark { display: flex; align-items: center; gap: 12px; letter-spacing: .5em; font-size: 15px; }
   .mark i { width: 18px; height: 18px; border-radius: 50%; background: conic-gradient(from 90deg, #6E5BFF, #1F6BFF, #8FD8FF, #6E5BFF); -webkit-mask: radial-gradient(circle, transparent 52%, #000 55%); mask: radial-gradient(circle, transparent 52%, #000 55%); }
-  .top a { color: var(--dim); text-decoration: none; letter-spacing: .2em; font-size: 12px; text-transform: uppercase; }
-  .top a:hover { color: #fff; }
-  .side { position: fixed; left: 36px; bottom: 34px; max-width: 300px; z-index: 3; }
+  .ctrls { display: flex; gap: 10px; }
+  .ctrls button { font: 400 13px "Jost", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #fff; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.45); border-radius: 18px; padding: 8px 16px; cursor: pointer; }
+  .ctrls button:hover { background: rgba(255,255,255,.14); border-color: #fff; }
+  .ctrls kbd { font: inherit; opacity: .6; margin-left: 6px; }
+  .side { position: fixed; left: 36px; bottom: 34px; max-width: 320px; z-index: 3; }
   .side h1 { font-weight: 300; font-size: 30px; letter-spacing: .2em; text-transform: uppercase; line-height: 1.2; margin: 0 0 12px; }
   .side p { color: var(--dim); margin: 0; }
-  .foot { position: fixed; right: 36px; bottom: 34px; color: var(--dim); font-size: 11px; letter-spacing: .12em; text-align: right; z-index: 3; }
+  .foot { position: fixed; right: 36px; bottom: 34px; color: var(--dim); font-size: 12px; letter-spacing: .06em; text-align: right; z-index: 3; line-height: 1.6; }
   .foot a { color: var(--dim); }
 
   .stage { height: 100%; display: grid; place-items: center; }
-  .scaler { width: 430px; height: 884px; transform-origin: center; }
+  .scaler { width: 430px; height: 884px; transform-origin: center; transition: transform .3s ease; }
   .iphone { position: relative; width: 430px; height: 884px; border-radius: 68px; padding: 18px;
     background: linear-gradient(145deg, #3A3D45, #15161A 40%, #2B2D33 70%, #0E0F12);
     box-shadow: 0 0 0 1.5px #55585F inset, 0 0 0 7px #0A0A0C inset, 0 50px 120px rgba(0,0,0,.6), 0 0 90px rgba(60,80,255,.12); }
@@ -37,6 +39,10 @@
   .status { position: absolute; top: 18px; left: 34px; right: 30px; display: flex; justify-content: space-between; font: 500 15px -apple-system, "SF Pro Text", sans-serif; z-index: 2; pointer-events: none; }
   .status span:last-child { letter-spacing: 2px; font-size: 12px; }
   iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+  /* presentation mode: only the phone, as large as the screen allows */
+  body.present .side, body.present .foot, body.present .mark, body.present #play { display: none; }
+  body.present .top { justify-content: flex-end; }
 
   @media (max-width: 900px) { .side, .foot { display: none; } }
   @media (max-width: 520px) {
@@ -52,7 +58,10 @@
 <body>
   <div class="top">
     <div class="mark"><i></i>POINT</div>
-    <div style="display:flex;gap:28px"><a href="#" id="play">▶ Play demo</a><a href="#" id="fs">⤢ Full screen</a></div>
+    <div class="ctrls">
+      <button id="play" title="Plays the demo by itself (key D)">▶ Play demo<kbd>D</kbd></button>
+      <button id="fs" title="Presentation mode (key F, Esc to leave)">⤢ Present<kbd>F</kbd></button>
+    </div>
   </div>
 
   <div class="stage">
@@ -61,7 +70,7 @@
         <div class="screen">
           <div class="island"></div>
           <div class="status"><span id="clock">9:41</span><span>●●● ▮</span></div>
-          <iframe src="app.html?embed" title="Point app"></iframe>
+          <iframe id="app" title="Point app"></iframe>
         </div>
       </div>
     </div>
@@ -69,30 +78,54 @@
 
   <div class="side">
     <h1>Right to<br>the point.</h1>
-    <p>Pick a goal. Write your list. Point finds the most sustainable product on the shelf, and shows you where it is.</p>
+    <p>Search what you need. Point ranks every product on the shelf by your goal, and shows you where it is in the shop.</p>
   </div>
-  <div class="foot">Prototype · HSG Fintech 2026 · Illustrative data<br>Photos: Wikimedia Commons (<a href="https://github.com/steinerchristof/point-prototype/blob/main/CREDITS.md">credits</a>) · Map: © OpenStreetMap contributors</div>
+  <div class="foot">Prototype · HSG Fintech 2026 · Illustrative data, not measured<br>Photos: Wikimedia Commons (<a href="https://github.com/steinerchristof/point-prototype/blob/main/CREDITS.md">credits</a>) · Map: © OpenStreetMap contributors</div>
 
 <script>
+  const frame = document.getElementById("app");
+  const h = location.hash;
+  frame.src = "app.html?embed" + (h && h !== "#demo" ? h : "");
+
+  const scaler = document.getElementById("scaler");
   function fit() {
-    const s = document.getElementById("scaler");
-    if (innerWidth <= 520) { s.style.transform = ""; return; }
-    s.style.transform = `scale(${Math.min(document.fullscreenElement ? 1.5 : 1, (innerHeight - 60) / 884, (innerWidth - 40) / 430)})`;
+    if (innerWidth <= 520) { scaler.style.transform = ""; return; }
+    const cap = document.body.classList.contains("present") ? 1.6 : 1;
+    scaler.style.transform = `scale(${Math.min(cap, (innerHeight - 80) / 884, (innerWidth - 40) / 430)})`;
   }
   addEventListener("resize", fit); fit();
+
+  // Presentation mode works with or without browser full screen.
   const fsBtn = document.getElementById("fs");
-  fsBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    if (document.fullscreenElement) document.exitFullscreen();
-    else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
-    else location.href = "app.html";
+  function setPresent(on) {
+    document.body.classList.toggle("present", on);
+    fsBtn.innerHTML = on ? "✕ Exit<kbd>Esc</kbd>" : "⤢ Present<kbd>F</kbd>";
+    if (on && !document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+    if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    setTimeout(fit, 80);
+  }
+  fsBtn.addEventListener("click", () => setPresent(!document.body.classList.contains("present")));
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("present")) setPresent(false); else setTimeout(fit, 80); });
+
+  const play = () => { frame.contentWindow.postMessage("demo", "*"); };
+  document.getElementById("play").addEventListener("click", play);
+  addEventListener("keydown", (e) => {
+    if (e.key === "d" || e.key === "D") play();
+    if (e.key === "f" || e.key === "F") setPresent(!document.body.classList.contains("present"));
+    if (e.key === "Escape" && document.body.classList.contains("present")) setPresent(false);
   });
-  document.addEventListener("fullscreenchange", () => { fsBtn.textContent = document.fullscreenElement ? "✕ Exit full screen" : "⤢ Full screen"; setTimeout(fit, 50); });
-  const frame = document.querySelector("iframe");
-  const play = () => frame.contentWindow.postMessage("demo", "*");
-  document.getElementById("play").addEventListener("click", (e) => { e.preventDefault(); play(); });
-  addEventListener("keydown", (e) => { if (e.key === "d" || e.key === "D") play(); });
-  if (location.hash === "#demo") frame.addEventListener("load", () => setTimeout(play, 600));
+  // Keys also work while the phone has focus.
+  frame.addEventListener("load", () => {
+    try {
+      frame.contentWindow.addEventListener("keydown", (e) => {
+        const typing = e.target && e.target.tagName === "INPUT";
+        if (typing) return;
+        if (e.key === "f" || e.key === "F") setPresent(!document.body.classList.contains("present"));
+        if (e.key === "Escape" && document.body.classList.contains("present")) setPresent(false);
+      });
+    } catch (err) {}
+    if (h === "#demo") setTimeout(play, 600);
+  });
   const d = new Date(); document.getElementById("clock").textContent = d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
 </script>
 </body>
