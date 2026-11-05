@@ -52,7 +52,7 @@
 <body>
   <div class="top">
     <div class="mark"><i></i>POINT</div>
-    <a href="app.html">Open full screen</a>
+    <div style="display:flex;gap:28px"><a href="#" id="play">▶ Play demo</a><a href="app.html">Open full screen</a></div>
   </div>
 
   <div class="stage">
@@ -80,6 +80,11 @@
     s.style.transform = `scale(${Math.min(1, (innerHeight - 60) / 884, (innerWidth - 40) / 430)})`;
   }
   addEventListener("resize", fit); fit();
+  const frame = document.querySelector("iframe");
+  const play = () => frame.contentWindow.postMessage("demo", "*");
+  document.getElementById("play").addEventListener("click", (e) => { e.preventDefault(); play(); });
+  addEventListener("keydown", (e) => { if (e.key === "d" || e.key === "D") play(); });
+  if (location.hash === "#demo") frame.addEventListener("load", () => setTimeout(play, 600));
   const d = new Date(); document.getElementById("clock").textContent = d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
 </script>
 </body>

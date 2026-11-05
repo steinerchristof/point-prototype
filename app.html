@@ -103,6 +103,20 @@
   .score-box b { font-weight: 400; font-size: 28px; }
   .deed { display: flex; align-items: center; gap: 12px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; margin: 12px 0; }
   .deed i { width: 18px; height: 18px; border-radius: 50%; background: #fff; color: var(--bg); font-style: normal; font-size: 11px; display: grid; place-items: center; font-weight: 500; }
+  .opt { transition: transform .5s cubic-bezier(.2,.8,.2,1), opacity .3s; }
+  .opt.enter { opacity: 0; transform: translateX(20px); }
+  .opt .dot { animation: pop .4s ease; }
+  @keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.6); } 100% { transform: scale(1); } }
+  .route { stroke-dasharray: 3 4; }
+  .draw { animation: draw 1.6s ease forwards; }
+  @keyframes draw { from { stroke-dashoffset: 400; } to { stroke-dashoffset: 0; } }
+  .tap { position: fixed; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: rgba(255,255,255,.35); border: 2px solid #fff; pointer-events: none; z-index: 50; opacity: 0; transition: left .5s ease, top .5s ease, opacity .2s; }
+  .tap.down { animation: tapk .35s ease; }
+  @keyframes tapk { 50% { transform: scale(.7); background: rgba(255,255,255,.6); } }
+  .playing * { cursor: default !important; }
+  .outro { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(3,7,43,.92); opacity: 0; pointer-events: none; transition: opacity .6s; z-index: 40; text-align: center; }
+  .outro.on { opacity: 1; }
+  .outro div { font-size: 24px; letter-spacing: .3em; text-transform: uppercase; line-height: 1.5; }
 </style>
 <script>if (/embed/.test(location.search)) document.documentElement.classList.add("embed");</script>
 </head>
@@ -199,14 +213,14 @@ const GOALS = [
 ];
 const DIMS = { co2: "CO₂", water: "Water", land: "Land", plastic: "Plastic", energy: "Energy", km0: "Km 0" };
 
-// Shops in Ticino (illustrative names and positions).
+// Shops in St. Gallen (illustrative names and positions).
 const SHOPS = [
-  { id: "lc", n: "Supermarket Lugano Centro", a: "Via Pretorio, Lugano", ll: [46.0056, 8.9497] },
-  { id: "ca", n: "Supermarket Cassarate", a: "Viale Castagnola, Lugano", ll: [46.0058, 8.9680] },
-  { id: "pa", n: "Supermarket Paradiso", a: "Riva Paradiso, Paradiso", ll: [45.9895, 8.9468] },
-  { id: "ma", n: "Supermarket Massagno", a: "Via San Gottardo, Massagno", ll: [46.0128, 8.9443] },
+  { id: "lc", n: "Supermarket Marktplatz", a: "Marktplatz, St. Gallen", ll: [47.4257, 9.3768] },
+  { id: "ca", n: "Supermarket Rosenberg", a: "Dufourstrasse, St. Gallen", ll: [47.4306, 9.3722] },
+  { id: "pa", n: "Supermarket Neudorf", a: "Rorschacher Strasse, St. Gallen", ll: [47.4352, 9.4035] },
+  { id: "ma", n: "Supermarket Bahnhof", a: "Bahnhofplatz, St. Gallen", ll: [47.4228, 9.3697] },
 ];
-const ME = [46.0036, 8.9514];
+const ME = [47.4243, 9.3739];
 
 // aisle: 1-6, shelf: text. shops: where it is stocked. Illustrative data.
 const DATA = {
@@ -222,7 +236,7 @@ const DATA = {
     { n: "Navel oranges", img: "oranges-c.jpg", d: "South Africa · 1.5 kg · plastic bag", pr: 3.20, all: 55.8, s: { co2: 49, water: 58, land: 78, plastic: 55, energy: 62, km0: 10 }, shops: ["ca", "pa"], shelf: "Crate 6" },
   ]},
   tomatoes: { aisle: 1, sec: "Fruit & vegetables", items: [
-    { n: "Tomatoes", img: "tomatoes-a.jpg", d: "Field-grown, Ticino · 1 kg · loose", pr: 4.20, all: 88.2, s: { co2: 91, water: 74, land: 85, plastic: 98, energy: 90, km0: 97 }, shops: ["lc", "pa", "ma"], shelf: "Crate 1, local produce" },
+    { n: "Tomatoes", img: "tomatoes-a.jpg", d: "Field-grown, St. Galler Rheintal · 1 kg · loose", pr: 4.20, all: 88.2, s: { co2: 91, water: 74, land: 85, plastic: 98, energy: 90, km0: 97 }, shops: ["lc", "pa", "ma"], shelf: "Crate 1, local produce" },
     { n: "Roma tomatoes", img: "tomatoes-c.jpg", d: "Spain · plastic tray", pr: 2.95, all: 66.7, s: { co2: 70, water: 39, land: 76, plastic: 42, energy: 78, km0: 40 }, shops: ["lc", "ca", "pa", "ma"], shelf: "Crate 2" },
     { n: "Cherry tomatoes", img: "tomatoes-b.jpg", d: "Heated greenhouse, Netherlands · tray", pr: 3.50, all: 61.0, s: { co2: 52, water: 88, land: 92, plastic: 40, energy: 41, km0: 45 }, shops: ["ca", "ma"], shelf: "Crate 3" },
     { n: "San Marzano", img: "tomatoes-d.jpg", d: "Origin not disclosed", pr: 3.80, all: null },
@@ -265,12 +279,43 @@ $("goals").innerHTML = GOALS.map((g, i) => `
     <div class="meter-l"><span>your month</span><span>${g.p}%</span></div></button>${i < GOALS.length - 1 ? '<div class="slash"></div>' : ""}`).join("");
 $("cats").innerHTML = Object.keys(DATA).map((k) => `<option value="${k}">`).join("");
 
+let shuffle = null;
+function countUp(el, to, dec = 0, ms = 900) {
+  const t0 = performance.now();
+  const step = (t) => { const k = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 3); el.textContent = (to * e).toFixed(dec); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function animateShelf(k) {
+  // render the shelf unsorted, then let the products move into rank order
+  const box = document.querySelector(`.cat[data-k="${k}"] .opts`); if (!box) return;
+  const items = DATA[k].items, r = ranked(k);
+  box.querySelectorAll(".opt").forEach((o) => o.remove());
+  const rm = box.querySelector(".rm");
+  const els = items.map((p) => {
+    const b = document.createElement("button"); b.className = "opt enter"; b.dataset.prod = k + "|" + p.n;
+    b.innerHTML = `${p.n}<small>…</small>`; box.insertBefore(b, rm); return b;
+  });
+  els.forEach((b, i) => setTimeout(() => b.classList.remove("enter"), 80 * i));
+  setTimeout(() => {
+    els.forEach((b, i) => { const v = sc(items[i]); const sm = b.querySelector("small"); if (v === null) { sm.textContent = "n/a"; b.classList.add("unv"); } else countUp(sm, v, 0, 600); });
+  }, 450);
+  setTimeout(() => {
+    const first = els.map((b) => b.getBoundingClientRect().top);
+    r.forEach((p) => box.insertBefore(els[items.indexOf(p)], rm));
+    els.forEach((b, i) => { const d = first[i] - b.getBoundingClientRect().top; b.style.transition = "none"; b.style.transform = `translateY(${d}px)`; });
+    requestAnimationFrame(() => requestAnimationFrame(() => els.forEach((b) => { b.style.transition = ""; b.style.transform = ""; })));
+    setTimeout(() => {
+      const best = els[items.indexOf(r[0])];
+      if (sc(r[0]) !== null) { best.classList.add("pick"); best.insertAdjacentHTML("afterbegin", '<span class="dot"></span>'); }
+    }, 550);
+  }, 1300);
+}
 function renderList() {
   $("goalTitle").innerHTML = GOALS.find((g) => g.k === st.goal).t;
   $("cats-list").innerHTML = st.list.map((k) => {
     if (!DATA[k]) return `<div class="cat"><button>${k}</button><div class="rm">NOT IN THIS SHOP YET</div></div>`;
     const r = ranked(k);
-    return `<div class="cat ${st.openCat === k ? "open" : ""}"><button data-cat="${k}">${k}</button><div class="opts">${r.map((p, i) => {
+    return `<div class="cat ${st.openCat === k ? "open" : ""}" data-k="${k}"><button data-cat="${k}">${k}</button><div class="opts">${r.map((p, i) => {
       const v = sc(p), unv = v === null, pick = i === 0 && !unv;
       return `<button class="opt ${pick ? "pick" : ""} ${unv ? "unv" : ""}" data-prod="${k}|${p.n}">${pick ? '<span class="dot"></span>' : ""}${p.n}<small>${unv ? "n/a" : Math.round(v)}</small></button>`;
     }).join("")}<button class="rm" data-rm="${k}">REMOVE</button></div></div>`;
@@ -288,6 +333,13 @@ function renderProduct() {
   $("pDims").innerHTML = unv ? `<p class="note">The producer has not shared verified data. Point shows the product, but never recommends it.</p>` :
     Object.entries(DIMS).map(([k, l]) => `<div class="dimrow ${k === st.goal ? "hi" : ""}"><span>${l}</span><div class="thin"><i style="width:${p.s[k]}%"></i></div><b>${Math.round(p.s[k])}</b></div>`).join("");
   $("pProof").textContent = unv ? "" : `✓ proof 0x${hash(p.n)}…`;
+  if (!unv) {
+    const bars = [...$("pDims").querySelectorAll(".thin i")], w = bars.map((b) => parseFloat(b.style.width));
+    const t0 = performance.now();
+    const grow = (t) => { const k = Math.min(1, (t - t0) / 900), e = 1 - Math.pow(1 - k, 3); bars.forEach((b, i) => (b.style.width = w[i] * e + "%")); if (k < 1) requestAnimationFrame(grow); };
+    bars.forEach((b) => (b.style.width = "0")); requestAnimationFrame(grow);
+    countUp($("pScore"), v, 1);
+  }
   $("verify").style.display = unv ? "none" : ""; $("verify").textContent = "VERIFY"; $("verify").disabled = false;
 }
 
@@ -296,7 +348,7 @@ function renderMap() {
   const p = st.prod;
   $("mapFor").textContent = p ? p.n : "All shops";
   if (!map) {
-    map = L.map("map", { zoomControl: false, attributionControl: true }).setView([46.0035, 8.953], 14);
+    map = L.map("map", { zoomControl: false, attributionControl: true }).setView([47.427, 9.382], 14);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
     layer = L.layerGroup().addTo(map);
   }
@@ -327,7 +379,7 @@ function renderFloor() {
   $("plan").innerHTML = `<svg viewBox="0 0 320 260" role="img" aria-label="Floor plan, product in aisle ${A}">
     <rect x="4" y="4" width="312" height="252" rx="10" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1"/>
     ${aisles}
-    <path d="M 40 238 L 40 214 L ${px} 214 L ${px} 196" fill="none" stroke="#fff" stroke-width="1.2" stroke-dasharray="3 4" opacity="${inStock ? 1 : 0}"/>
+    <path class="${inStock ? "draw" : ""}" d="M 40 220 L 40 205 L ${px} 205 L ${px} 192" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="400" stroke-dashoffset="400" opacity="${inStock ? 1 : 0}"/>
     <rect x="16" y="240" width="48" height="16" fill="#03072B"/><text x="40" y="252" fill="#fff" font-size="9" text-anchor="middle" font-family="Jost" letter-spacing="2">ENTRANCE</text>
     <circle cx="40" cy="226" r="5" fill="#4C8DFF"/>
     ${inStock ? `<circle cx="${px}" cy="120" r="6" fill="#3CCB6E" class="pulse"/><circle cx="${px}" cy="120" r="5" fill="#3CCB6E"/>` : ""}
@@ -336,7 +388,7 @@ function renderFloor() {
   $("shelf").textContent = inStock ? `${p.n} · ${p.shelf}` : `Try ${SHOPS.filter((s) => (p.shops || []).includes(s.id)).map((s) => s.n.replace("Supermarket ", "")).join(", ")}.`;
 }
 
-function addItem() { const k = $("add").value.trim().toLowerCase(); if (k && !st.list.includes(k)) st.list.push(k); st.openCat = k; $("add").value = ""; renderList(); }
+function addItem() { const k = $("add").value.trim().toLowerCase(); if (!k) return; if (!st.list.includes(k)) st.list.unshift(k); st.openCat = k; $("add").value = ""; renderList(); if (DATA[k]) animateShelf(k); }
 $("add").addEventListener("keydown", (e) => { if (e.key === "Enter") addItem(); });
 $("add").addEventListener("change", addItem);
 
@@ -344,16 +396,46 @@ document.addEventListener("click", (e) => {
   const t = e.target.closest("button"); if (!t) return;
   if (t.hasAttribute("data-back")) return back();
   if (t.dataset.goal) { st.goal = t.dataset.goal; return show("list"); }
-  if (t.dataset.cat) { st.openCat = st.openCat === t.dataset.cat ? null : t.dataset.cat; return renderList(); }
+  if (t.dataset.cat) { st.openCat = st.openCat === t.dataset.cat ? null : t.dataset.cat; renderList(); if (st.openCat) animateShelf(st.openCat); return; }
   if (t.dataset.rm) { st.list = st.list.filter((k) => k !== t.dataset.rm); return renderList(); }
   if (t.dataset.prod) { const [k, n] = t.dataset.prod.split("|"); st.prod = DATA[k].items.find((p) => p.n === n); return show("product"); }
   if (t.dataset.shop) { st.shop = t.dataset.shop; return show("floor"); }
   if (t.dataset.go) { if (t.dataset.go === "map" && hist[hist.length - 1] === "home") st.prod = null; return show(t.dataset.go); }
   if (t.id === "verify") { t.textContent = "CHECKING…"; setTimeout(() => { t.textContent = "✓ VALID"; t.disabled = true; }, 700); }
 });
+// ---------- Auto-play demo (app.html#demo, key D, or message "demo" from the page) ----------
+let playing = false;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const tapEl = document.createElement("div"); tapEl.className = "tap"; document.body.appendChild(tapEl);
+const outro = document.createElement("div"); outro.className = "outro"; outro.innerHTML = "<div>Right to<br>the point.</div>"; document.body.appendChild(outro);
+async function tap(el) {
+  el.scrollIntoView({ block: "center", behavior: "smooth" }); await sleep(450);
+  const r = el.getBoundingClientRect();
+  tapEl.style.left = r.left + r.width / 2 + "px"; tapEl.style.top = r.top + r.height / 2 + "px"; tapEl.style.opacity = 1;
+  await sleep(550); tapEl.classList.remove("down"); void tapEl.offsetWidth; tapEl.classList.add("down");
+  await sleep(200); el.click(); await sleep(150); tapEl.style.opacity = 0;
+}
+async function type(el, text) { el.focus(); for (const c of text) { el.value += c; await sleep(140); } await sleep(250); }
+async function demo() {
+  if (playing) return; playing = true; document.body.classList.add("playing"); outro.classList.remove("on");
+  st.goal = "plastic"; st.list = ["oranges", "tomatoes", "milk"]; st.openCat = null; st.shop = "lc";
+  hist.length = 1; show("home", false); await sleep(900);
+  await tap(document.querySelector('[data-goal="plastic"]')); await sleep(900);
+  const inp = $("add"); await tap(inp); await type(inp, "pasta");
+  addItem(); inp.blur(); await sleep(2600);
+  await tap(document.querySelector('.opt.pick')); await sleep(2200);
+  await tap($("verify")); await sleep(1300);
+  await tap(document.querySelector('[data-go="floor"]')); await sleep(3200);
+  outro.classList.add("on"); await sleep(2600); outro.classList.remove("on");
+  document.body.classList.remove("playing"); playing = false;
+}
+addEventListener("keydown", (e) => { if ((e.key === "d" || e.key === "D") && document.activeElement !== $("add")) demo(); });
+addEventListener("message", (e) => { if (e.data === "demo") demo(); });
+
 // Deep links for the pitch, e.g. app.html#floor or app.html#product
 (function () {
   const h = location.hash.slice(1); if (!h) return;
+  if (h === "demo") { setTimeout(demo, 800); return; }
   st.prod = DATA.pasta.items[0];
   const path = { list: ["list"], product: ["list", "product"], map: ["list", "product", "map"], floor: ["list", "product", "floor"], profile: ["profile"] }[h] || [];
   path.forEach((id) => show(id));
