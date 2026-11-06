@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#03072B">
+<title>Point App</title>
+<meta name="description" content="Point app prototype: search a product, see the most sustainable one on the shelf, and find it in the shop.">
+<script>
+  // On a desktop the app is always shown inside the iPhone frame (index.html).
+  if (/embed/.test(location.search)) {
+    document.documentElement.classList.add("embed");
+    // Inside index.html: "bare" when the page shows the app without the iPhone frame (real phones).
+    const bareCheck = () => { try { document.documentElement.classList.toggle("bare", parent.matchMedia(parent.BARE_Q).matches); } catch (e) {} };
+    bareCheck(); try { parent.addEventListener("resize", bareCheck); } catch (e) {}
+  }
+  else if (window.innerWidth >= 700) location.replace("index.html" + location.hash);
+  else document.documentElement.classList.add("bare");
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    --bg: #03072B; --panel: #0B1446; --fg: #FFFFFF;
+    --dim: rgba(255,255,255,.74);   /* secondary text, contrast > 7:1 on --bg */
+    --faint: rgba(255,255,255,.35); /* lines and borders only */
+    --green: #3CCB6E; --blue: #4C8DFF; --pad: 24px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--fg); font: 300 16px/1.45 "Jost", "Century Gothic", Futura, sans-serif; overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  .screen { position: absolute; inset: 0; padding: 54px max(var(--pad), calc((100% - 520px) / 2)) calc(32px + env(safe-area-inset-bottom)); overflow-y: auto; display: none;
+    background: radial-gradient(ellipse at 50% 22%, #0E1A5A 0%, var(--bg) 62%); scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+  /* real phone (no drawn status bar): use the device safe area instead */
+  .bare .screen { padding-top: max(18px, calc(env(safe-area-inset-top) + 10px)); }
+  .screen.on { display: block; animation: in .25s ease; }
+  @keyframes in { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+
+  /* top bar */
+  .bar { display: flex; justify-content: space-between; align-items: center; min-height: 34px; gap: 12px; }
+  .icons { display: flex; gap: 14px; align-items: center; }
+  .icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; }
+  .icon svg { width: 21px; height: 21px; stroke: #fff; fill: none; stroke-width: 1.5; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; border: 1px solid #fff; display: grid; place-items: center; font-size: 12px; font-weight: 400; }
+  .ctx { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); text-align: right; }
+  .shopbtn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); border: 1px solid var(--faint); border-radius: 15px; padding: 5px 12px; }
+  .shopbtn b { color: #fff; font-weight: 400; }
+
+  /* type scale: display (right, brand) / label / body */
+  .display { font-size: 24px; letter-spacing: .22em; text-transform: uppercase; text-align: right; line-height: 1.22; font-weight: 300; margin: 14px 0 0; }
+  .label { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); margin: 22px 0 10px; }
+  .slash { height: 1px; background: rgba(255,255,255,.7); transform: rotate(-2deg); margin: 22px -4px; }
+  .note { font-size: 13px; color: var(--dim); margin: 18px 0 0; }
+
+  /* home */
+  .logo { display: grid; place-items: center; height: 150px; }
+  .logo .ring { width: 96px; height: 96px; border-radius: 50%; background: conic-gradient(from 90deg, #6E5BFF, #4E73FF, #1F6BFF, #3D8BFF, #8FD8FF, #7C7BFF, #6E5BFF); -webkit-mask: radial-gradient(circle, transparent 54%, #000 56%); mask: radial-gradient(circle, transparent 54%, #000 56%); filter: drop-shadow(0 0 16px rgba(110,91,255,.7)); }
+  .word { text-align: center; font-size: 15px; letter-spacing: .5em; padding-left: .5em; margin: -4px 0 18px; }
+  .goal { display: block; width: 100%; padding: 4px 0; }
+  .goal h2 { font-weight: 300; font-size: 24px; line-height: 1.18; margin: 0; letter-spacing: .2em; text-transform: uppercase; text-align: right; }
+  .meter { height: 8px; border: 1px solid #fff; border-radius: 5px; margin-top: 14px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: #fff; }
+  .meter-l { display: flex; justify-content: space-between; font-size: 13px; color: var(--dim); margin-top: 6px; }
+
+  /* search */
+  .search { position: relative; }
+  .search .box { display: flex; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,.75); border-radius: 26px; padding: 11px 16px; background: rgba(255,255,255,.07); }
+  .search .box:focus-within { border-color: #fff; background: rgba(255,255,255,.12); }
+  .search svg { flex: none; }
+  .search input { flex: 1; min-width: 0; background: transparent; border: 0; color: #fff; font: inherit; font-size: 16px; outline: none; }
+  .search input::placeholder { color: rgba(255,255,255,.7); }
+  .sugg { position: absolute; left: 0; right: 0; top: calc(100% + 6px); background: var(--panel); border: 1px solid var(--faint); border-radius: 14px; overflow: hidden; z-index: 20; display: none; box-shadow: 0 14px 30px rgba(0,0,0,.45); }
+  .sugg.on { display: block; }
+  .sugg button { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .sugg button:last-child { border-bottom: 0; }
+  .sugg button.hl { background: rgba(255,255,255,.1); }
+  .sugg small { color: var(--dim); font-size: 13px; }
+  .sugg .empty { padding: 12px 16px; color: var(--dim); font-size: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip, .gchip { border: 1px solid rgba(255,255,255,.5); border-radius: 16px; padding: 5px 13px; font-size: 14px; white-space: nowrap; }
+  .chip { text-transform: capitalize; }
+  .gchip.on { background: #fff; color: var(--bg); border-color: #fff; font-weight: 500; }
+
+  /* list: groups and product rows */
+  .group { border-top: 1px solid var(--faint); }
+  .group:last-of-type { border-bottom: 1px solid var(--faint); }
+  .ghead { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 0; }
+  .ghead .nm { font-size: 19px; font-weight: 400; text-transform: capitalize; }
+  .ghead .ct { font-size: 13px; color: var(--dim); }
+  .ghead .sp { flex: 1; }
+  .ghead .best { font-size: 13px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+  .ghead .best i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 6px; vertical-align: 1px; font-style: normal; }
+  .chev { color: var(--dim); font-size: 18px; transition: transform .2s; display: inline-block; width: 12px; text-align: center; }
+  .group.open .ghead .chev { transform: rotate(90deg); }
+  .gbody { display: none; padding: 0 0 12px; }
+  .group.open .gbody { display: block; }
+  .group.open .ghead .best { display: none; }
+  .colhead { display: flex; justify-content: space-between; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); padding: 2px 0 6px 20px; }
+  .opt { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 0; border-radius: 8px; transition: transform .5s cubic-bezier(.2,.8,.2,1), opacity .3s; }
+  .opt.enter { opacity: 0; transform: translateX(16px); }
+  .opt .lead { width: 10px; flex: none; display: grid; place-items: center; }
+  .opt .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pop .4s ease; }
+  @keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.6); } 100% { transform: scale(1); } }
+  .opt .pn { flex: 1; font-size: 16px; color: var(--dim); }
+  .opt.pick .pn { color: #fff; font-weight: 400; }
+  .opt .sv { font-size: 16px; font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+  .opt.pick .sv { font-weight: 500; }
+  .opt.unv .pn, .opt.unv .sv { color: rgba(255,255,255,.55); font-style: italic; }
+  .opt .tag { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--green); border: 1px solid var(--green); border-radius: 10px; padding: 1px 7px; margin-left: 4px; font-style: normal; }
+  .gfoot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-left: 20px; }
+  .link { font-size: 13px; color: var(--dim); text-decoration: underline; text-underline-offset: 3px; }
+
+  /* product */
+  .phead { display: flex; gap: 16px; align-items: center; justify-content: flex-end; margin-top: 12px; }
+  .ph0 { width: 96px; height: 96px; border-radius: 50%; border: 1px dashed rgba(255,255,255,.5); display: grid; place-items: center; font-size: 12px; letter-spacing: .12em; color: var(--dim); text-align: center; flex: none; }
+  .pimg { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,.4); flex: none; }
+  .pname { font-size: 24px; font-weight: 400; text-align: right; line-height: 1.2; }
+  .porigin { color: var(--dim); text-align: right; font-size: 14px; margin-top: 4px; }
+  .pscore { display: flex; justify-content: flex-end; align-items: baseline; gap: 6px; margin-top: 16px; }
+  .pscore b { font-weight: 300; font-size: 54px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .pscore span { color: var(--dim); font-size: 16px; }
+  .pscore-l { text-align: right; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
+  .prank { text-align: right; font-size: 14px; margin-top: 6px; }
+  .prank i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 6px; vertical-align: 1px; }
+  .dimrow { display: grid; grid-template-columns: 74px 1fr 30px; gap: 12px; align-items: center; font-size: 14px; color: var(--dim); margin: 10px 0; }
+  .dimrow.hi { color: #fff; font-weight: 400; }
+  .thin { height: 5px; border: 1px solid rgba(255,255,255,.6); border-radius: 3px; overflow: hidden; }
+  .thin i { display: block; height: 100%; background: #fff; }
+  .dimrow b { font-weight: 400; color: #fff; text-align: right; font-variant-numeric: tabular-nums; }
+  .proof { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 18px; padding: 12px 14px; border: 1px solid rgba(60,203,110,.5); border-radius: 12px; }
+  .proof div { font-size: 14px; color: var(--green); }
+  .proof small { display: block; color: var(--dim); font-size: 12px; margin-top: 2px; }
+  .proof button { border: 1px solid var(--green); border-radius: 15px; padding: 5px 14px; font-size: 13px; letter-spacing: .12em; color: var(--green); white-space: nowrap; }
+  .actions { display: grid; gap: 10px; margin-top: 20px; }
+  .act { border: 1px solid #fff; border-radius: 24px; padding: 12px 0; text-align: center; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; }
+  .act.solid { background: #fff; color: var(--bg); font-weight: 500; }
+  .unvbox { margin-top: 18px; padding: 14px; border: 1px solid var(--faint); border-radius: 12px; color: var(--dim); font-size: 14px; }
+
+  /* map */
+  #map { height: 300px; margin: 16px calc(-1 * var(--pad)) 0; background: #0A1240; }
+  .leaflet-container { font: 300 13px "Jost", sans-serif; background: #0A1240; }
+  .leaflet-tile-pane { filter: invert(1) hue-rotate(195deg) brightness(.85) saturate(.5) contrast(.95); }
+  .leaflet-control-attribution { background: rgba(3,7,43,.75) !important; color: rgba(255,255,255,.6) !important; font-size: 10px !important; }
+  .leaflet-control-attribution a { color: rgba(255,255,255,.8) !important; }
+  .leaflet-tooltip { background: var(--panel); color: #fff; border: 1px solid var(--faint); font: 400 12px "Jost", sans-serif; box-shadow: none; }
+  .leaflet-tooltip-top:before { border-top-color: var(--panel); }
+  .leaflet-tooltip-bottom:before { border-bottom-color: var(--panel); }
+  .leaflet-tooltip-right:before { border-right-color: var(--panel); }
+  .pin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; background: var(--bg); }
+  .pin.ok { background: var(--green); box-shadow: 0 0 10px var(--green); }
+  .pin.me { background: var(--blue); box-shadow: 0 0 0 6px rgba(76,141,255,.3); }
+  .legend { display: flex; gap: 16px; font-size: 13px; color: var(--dim); margin: 12px 0 4px; flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #fff; display: inline-block; }
+  .shop { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 0; border-bottom: 1px solid var(--faint); }
+  .shop .info { flex: 1; min-width: 0; }
+  .shop b { font-weight: 400; display: block; }
+  .shop span { font-size: 13px; color: var(--dim); }
+  .shop em { font-style: normal; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+  .shop em.ok { color: var(--green); }
+  .shop em.no { color: var(--dim); }
+  .shop .nw { white-space: nowrap; }
+
+  /* floor plan */
+  .plan { margin: 16px 0 0; }
+  .plan svg { width: 100%; height: auto; display: block; }
+  .here { font-size: 24px; letter-spacing: .2em; text-transform: uppercase; text-align: right; margin-top: 18px; line-height: 1.25; }
+  .here small { display: block; font-size: 14px; letter-spacing: .16em; color: var(--dim); }
+  .shelfline { text-align: right; font-size: 15px; margin-top: 8px; }
+  @keyframes pulse { 0% { r: 7; opacity: .9; } 100% { r: 22; opacity: 0; } }
+  .pulse { animation: pulse 1.4s ease-out infinite; }
+  .draw { animation: draw 1.6s ease forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  /* profile */
+  .scorebig { text-align: center; margin-top: 18px; }
+  .scorebig b { font-weight: 300; font-size: 64px; line-height: 1; }
+  .scorebig span { font-size: 20px; color: var(--dim); }
+  .deed { display: flex; align-items: center; gap: 12px; font-size: 15px; margin: 12px 0; }
+  .deed i { width: 20px; height: 20px; border-radius: 50%; background: #fff; color: var(--bg); font-style: normal; font-size: 12px; display: grid; place-items: center; font-weight: 500; flex: none; }
+
+  /* demo overlay */
+  .tap { position: fixed; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: rgba(255,255,255,.35); border: 2px solid #fff; pointer-events: none; z-index: 50; opacity: 0; transition: left .5s ease, top .5s ease, opacity .2s; }
+  .tap.down { animation: tapk .35s ease; }
+  @keyframes tapk { 50% { transform: scale(.7); background: rgba(255,255,255,.6); } }
+  .cap { position: fixed; left: 50%; bottom: calc(26px + env(safe-area-inset-bottom)); transform: translate(-50%, 12px); max-width: calc(100% - 40px); width: max-content;
+    background: rgba(255,255,255,.96); color: var(--bg); border-radius: 22px; padding: 10px 18px; font-size: 15px; font-weight: 500; line-height: 1.3; text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45); opacity: 0; transition: opacity .35s, transform .35s; z-index: 45; pointer-events: none; }
+  .cap.on { opacity: 1; transform: translate(-50%, 0); }
+  .cap b { color: #1F6BFF; font-weight: 500; margin-right: 6px; }
+  .outro { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(3,7,43,.94); opacity: 0; pointer-events: none; transition: opacity .6s; z-index: 40; text-align: center; }
+  .outro.on { opacity: 1; }
+  .outro div { font-size: 24px; letter-spacing: .3em; text-transform: uppercase; line-height: 1.5; padding-left: .3em; }
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<section class="screen on" id="home">
+  <div class="bar">
+    <button class="shopbtn" data-go="map" aria-label="Choose your shop"><svg viewBox="0 0 24 24" width="14" height="14" stroke="#fff" fill="none" stroke-width="1.6"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg><b class="shopname"></b></button>
+    <button class="avatar" data-go="profile" aria-label="Your profile">P</button>
+  </div>
+  <div class="logo"><div class="ring"></div></div>
+  <div class="word">POINT</div>
+  <div class="search" data-search>
+    <div class="box"><svg viewBox="0 0 24 24" width="18" height="18" stroke="#fff" fill="none" stroke-width="1.6"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg><input id="q" placeholder="What do you need? e.g. pasta" autocomplete="off" enterkeyhint="search" aria-label="Search a product"></div>
+    <div class="sugg" role="listbox"></div>
+  </div>
+  <div class="chips" id="homeChips"></div>
+  <div class="label" style="margin-top:30px">Rank the shelf by your goal</div>
+  <div id="goals"></div>
+</section>
+
+<!-- LIST -->
+<section class="screen" id="list">
+  <div class="bar">
+    <button class="icon" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="shopbtn" data-go="map" aria-label="Change shop"><svg viewBox="0 0 24 24" width="14" height="14" stroke="#fff" fill="none" stroke-width="1.6"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg><b class="shopname"></b></button>
+  </div>
+  <div class="display">Your<br>list</div>
+  <div class="search" data-search style="margin-top:18px">
+    <div class="box"><svg viewBox="0 0 24 24" width="18" height="18" stroke="#fff" fill="none" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg><input id="add" placeholder="Add a product, e.g. coffee" autocomplete="off" enterkeyhint="done" aria-label="Add a product"></div>
+    <div class="sugg" role="listbox"></div>
+  </div>
+  <div class="label">Rank by</div>
+  <div class="chips" id="gchips" style="margin-top:0"></div>
+  <div style="height:22px"></div>
+  <div id="groups"></div>
+  <p class="note"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px"></span>Point’s pick: the best verified product on this shelf for your goal. Scores are out of 100.</p>
+</section>
+
+<!-- PRODUCT -->
+<section class="screen" id="product">
+  <div class="bar"><button class="icon" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="ctx" id="pCtx"></span></div>
+  <div class="phead"><div><div class="pname" id="pName"></div><div class="porigin" id="pOrigin"></div></div><img class="pimg" id="pImg" alt=""><div class="ph0" id="pPh">NO<br>PHOTO</div></div>
+  <div class="pscore"><b id="pScore"></b><span id="pOf">/ 100</span></div>
+  <div class="pscore-l" id="pScoreL"></div>
+  <div class="prank" id="pRank"></div>
+  <div class="slash"></div>
+  <div id="pBody"></div>
+  <div class="actions">
+    <button class="act solid" data-go="floor" id="findBtn">Find it in the shop</button>
+    <button class="act" data-go="map">Other shops nearby</button>
+  </div>
+</section>
+
+<!-- MAP -->
+<section class="screen" id="map-s">
+  <div class="bar"><button class="icon" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="ctx" id="mapCtx"></span></div>
+  <div class="display">Shops<br>near you</div>
+  <div id="map"></div>
+  <div class="legend" id="legend"></div>
+  <div id="shops"></div>
+</section>
+
+<!-- FLOOR PLAN -->
+<section class="screen" id="floor">
+  <div class="bar"><button class="icon" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="ctx" id="floorCtx"></span></div>
+  <div class="display">In the<br>shop</div>
+  <div class="plan" id="plan"></div>
+  <div class="here" id="aisle"></div>
+  <div class="shelfline" id="shelf"></div>
+  <div class="actions" id="floorActs"></div>
+</section>
+
+<!-- PROFILE -->
+<section class="screen" id="profile">
+  <div class="bar"><button class="icon" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="ctx">Guest</span></div>
+  <div class="display">Your<br>month</div>
+  <div class="scorebig"><b>82</b><span> / 100</span></div>
+  <div class="pscore-l" style="text-align:center;margin-top:6px">Your Point score this month</div>
+  <div class="meter" style="margin-top:18px"><i style="width:82%"></i></div>
+  <div class="meter-l"><span>November</span><span>up 6 from October</span></div>
+  <div class="slash"></div>
+  <div class="label" style="margin-top:0">What you did</div>
+  <div class="deed"><i>✓</i>Chose Point’s pick 14 times</div>
+  <div class="deed"><i>✓</i>Saved about 3.1 kg CO₂</div>
+  <div class="deed"><i>✓</i>Avoided 22 plastic trays</div>
+  <div class="deed"><i>✓</i>Invited a friend</div>
+  <p class="note">Illustrative numbers for the prototype.</p>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+// ===================== Data (illustrative) =====================
+const GOALS = [
+  { k: "plastic", t: "Less plastic", p: 78 },
+  { k: "co2", t: "Less CO₂", p: 55 },
+  { k: "water", t: "Less water", p: 40 },
+  { k: "km0", t: "Km 0", p: 63 },
+  { k: "all", t: "All together", p: 61 },
+];
+const DIMS = { co2: "CO₂", water: "Water", land: "Land", plastic: "Plastic", energy: "Energy", km0: "Km 0" };
+const SHOPS = [
+  { id: "mp", n: "Supermarket Marktplatz", s: "Marktplatz", a: "Marktplatz, St. Gallen", ll: [47.4257, 9.3768], dir: "right" },
+  { id: "bh", n: "Supermarket Bahnhof", s: "Bahnhof", a: "Bahnhofplatz, St. Gallen", ll: [47.4228, 9.3697], dir: "bottom" },
+  { id: "rb", n: "Supermarket Rosenberg", s: "Rosenberg", a: "Dufourstrasse, St. Gallen", ll: [47.4306, 9.3722], dir: "top" },
+  { id: "nd", n: "Supermarket Neudorf", s: "Neudorf", a: "Rorschacher Strasse, St. Gallen", ll: [47.4352, 9.4035], dir: "top" },
+];
+const ME = [47.4243, 9.3739];
+const ALL = ["mp", "bh", "rb", "nd"];
+const AISLES = ["Fruit & veg", "Bakery", "Pasta & rice", "Coffee", "Dairy", "Drinks"];
+const DATA = {
+  pasta: { aisle: 3, items: [
+    { n: "Spaghetti", img: "pasta-a.jpg", d: "Durum wheat, Italy · 500 g · paper box", pr: 2.20, all: 86.5, s: { co2: 84, water: 79, land: 82, plastic: 95, energy: 87, km0: 72 }, shops: ["mp", "bh", "rb"], shelf: "Shelf B, eye level" },
+    { n: "Tagliatelle", img: "pasta-c.jpg", d: "Swiss spelt · 250 g · plastic tray", pr: 3.90, all: 81.8, s: { co2: 80, water: 85, land: 70, plastic: 58, energy: 82, km0: 94 }, shops: ["mp", "nd"], shelf: "Shelf A, top" },
+    { n: "Penne", img: "pasta-b.png", d: "Durum wheat, Canada · 500 g · plastic bag", pr: 1.60, all: 77.4, s: { co2: 76, water: 81, land: 78, plastic: 55, energy: 77, km0: 48 }, shops: ALL, shelf: "Shelf C, bottom" },
+    { n: "Egg pasta", img: null, d: "Origin not disclosed · 500 g", pr: 2.80, all: null, shops: ALL, shelf: "Shelf C, bottom" },
+  ]},
+  oranges: { aisle: 1, items: [
+    { n: "Blood oranges", img: "oranges-a.jpg", d: "Sicily, Italy · 1 kg · loose", pr: 3.95, all: 79.6, s: { co2: 80, water: 66, land: 82, plastic: 96, energy: 84, km0: 74 }, shops: ["mp", "bh"], shelf: "Crate 4" },
+    { n: "Oranges", img: "oranges-b.jpg", d: "Valencia, Spain · 2 kg · net", pr: 4.50, all: 71.2, s: { co2: 74, water: 52, land: 80, plastic: 70, energy: 79, km0: 58 }, shops: ALL, shelf: "Crate 5" },
+    { n: "Navel oranges", img: "oranges-c.jpg", d: "South Africa · 1.5 kg · plastic bag", pr: 3.20, all: 55.8, s: { co2: 49, water: 58, land: 78, plastic: 55, energy: 62, km0: 10 }, shops: ["rb", "nd"], shelf: "Crate 6" },
+  ]},
+  tomatoes: { aisle: 1, items: [
+    { n: "Tomatoes", img: "tomatoes-a.jpg", d: "Field-grown, St. Galler Rheintal · 1 kg · loose", pr: 4.20, all: 88.2, s: { co2: 91, water: 74, land: 85, plastic: 98, energy: 90, km0: 97 }, shops: ["mp", "bh", "nd"], shelf: "Crate 1, local produce" },
+    { n: "Roma tomatoes", img: "tomatoes-c.jpg", d: "Spain · 500 g · plastic tray", pr: 2.95, all: 66.7, s: { co2: 70, water: 39, land: 76, plastic: 42, energy: 78, km0: 40 }, shops: ALL, shelf: "Crate 2" },
+    { n: "Cherry tomatoes", img: "tomatoes-b.jpg", d: "Heated greenhouse, Netherlands · 250 g · tray", pr: 3.50, all: 61.0, s: { co2: 52, water: 88, land: 92, plastic: 40, energy: 41, km0: 45 }, shops: ["rb", "bh"], shelf: "Crate 3" },
+    { n: "San Marzano", img: "tomatoes-d.jpg", d: "Origin not disclosed · 500 g", pr: 3.80, all: null, shops: ["mp", "rb"], shelf: "Crate 3" },
+  ]},
+  milk: { aisle: 5, items: [
+    { n: "Oat drink", img: "milk-b.jpg", d: "Sweden · 1 l · carton", pr: 2.95, all: 84.9, s: { co2: 90, water: 89, land: 87, plastic: 76, energy: 81, km0: 62 }, shops: ["mp", "rb", "bh"], shelf: "Fridge 2, middle" },
+    { n: "Whole milk", img: "milk-a.jpg", d: "Emmental, Switzerland · 1 l · glass", pr: 1.65, all: 72.3, s: { co2: 61, water: 66, land: 58, plastic: 90, energy: 74, km0: 92 }, shops: ALL, shelf: "Fridge 1, top" },
+  ]},
+  coffee: { aisle: 4, items: [
+    { n: "Coffee beans", img: "coffee-a.jpg", d: "Peru, shade-grown · 500 g · paper bag", pr: 8.90, all: 69.8, s: { co2: 64, water: 61, land: 79, plastic: 70, energy: 72, km0: 30 }, shops: ["mp", "bh"], shelf: "Shelf A, eye level" },
+    { n: "Instant coffee", img: "coffee-b.jpg", d: "Brazil · 200 g · glass jar", pr: 6.50, all: 58.2, s: { co2: 52, water: 55, land: 60, plastic: 68, energy: 44, km0: 28 }, shops: ALL, shelf: "Shelf C" },
+    { n: "Ground coffee", img: "coffee-c.jpg", d: "Origin not disclosed · 500 g", pr: 5.95, all: null, shops: ALL, shelf: "Shelf B" },
+  ]},
+  apples: { aisle: 1, items: [
+    { n: "Gala apples", img: "apples-a.jpg", d: "Thurgau, Switzerland · 1 kg · loose", pr: 3.40, all: 90.4, s: { co2: 92, water: 86, land: 88, plastic: 99, energy: 87, km0: 96 }, shops: ALL, shelf: "Crate 7" },
+    { n: "Pink Lady apples", img: "apples-b.jpg", d: "New Zealand · 1 kg · plastic bag", pr: 4.95, all: 64.1, s: { co2: 55, water: 80, land: 84, plastic: 60, energy: 70, km0: 12 }, shops: ["rb", "nd"], shelf: "Crate 8" },
+  ]},
+};
+const SYN = {
+  pasta: ["pasta", "spaghetti", "penne", "tagliatelle", "noodles", "nudeln", "teigwaren", "pates"],
+  oranges: ["oranges", "orange", "orangen", "arance", "blood orange", "navel"],
+  tomatoes: ["tomatoes", "tomato", "tomaten", "tomate", "pomodori", "tomates", "cherry"],
+  milk: ["milk", "milch", "latte", "lait", "oat drink", "hafermilch", "oat"],
+  coffee: ["coffee", "kaffee", "caffe", "cafe", "espresso", "beans"],
+  apples: ["apples", "apple", "apfel", "aepfel", "mele", "pommes", "gala"],
+};
+
+// ===================== State and helpers =====================
+const st = { goal: "plastic", list: ["pasta", "oranges", "tomatoes", "milk"], open: null, prod: null, cat: null, shop: "mp", mapMode: "browse" };
+const hist = ["home"];
+const $ = (id) => document.getElementById(id);
+const goalT = (k = st.goal) => GOALS.find((g) => g.k === k).t;
+const sc = (p) => (p.all === null ? null : st.goal === "all" ? p.all : p.s[st.goal]);
+const fmt = (v) => (v === null ? "–" : Number.isInteger(v) ? String(v) : v.toFixed(1));
+const shelf = (k) => DATA[k].items.filter((p) => p.shops.includes(st.shop));
+const ranked = (k) => shelf(k).sort((a, b) => (sc(b) ?? -1) - (sc(a) ?? -1));
+const shop = (id = st.shop) => SHOPS.find((s) => s.id === id);
+const catOf = (p) => Object.keys(DATA).find((k) => DATA[k].items.includes(p));
+const norm = (x) => x.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ä/g, "ae").trim();
+function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h.toString(16).padStart(8, "0"); }
+function countUp(el, to, ms = 900) {
+  const t0 = performance.now();
+  const step = (t) => { const k = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 3); el.textContent = k < 1 ? Math.round(to * e) : fmt(to); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function setShopNames() { document.querySelectorAll(".shopname").forEach((b) => (b.textContent = shop().s)); }
+
+// ===================== Navigation =====================
+const SCREEN = { home: "home", list: "list", product: "product", map: "map-s", floor: "floor", profile: "profile" };
+function show(id, push = true) {
+  document.querySelectorAll(".screen").forEach((s) => s.classList.remove("on"));
+  const el = $(SCREEN[id]); el.classList.add("on"); el.scrollTop = 0;
+  if (push && hist[hist.length - 1] !== id) hist.push(id);
+  closeSugg();
+  ({ home: renderHome, list: renderList, product: renderProduct, map: renderMap, floor: renderFloor })[id]?.();
+}
+function back() { if (hist.length > 1) { hist.pop(); show(hist[hist.length - 1], false); } }
+
+// ===================== Home =====================
+function renderHome() {
+  setShopNames();
+  $("homeChips").innerHTML = Object.keys(DATA).map((k) => `<button class="chip" data-chip="${k}">${k}</button>`).join("");
+  $("goals").innerHTML = GOALS.map((g) => `<div class="slash"></div>
+    <button class="goal" data-goal="${g.k}" aria-label="Rank by ${g.t}"><h2>${g.t.replace(" ", "<br>")}</h2>
+      <div class="meter"><i style="width:${g.p}%"></i></div>
+      <div class="meter-l"><span>This month</span><span>${g.p}% of your picks</span></div></button>`).join("");
+}
+
+// ===================== List =====================
+function rowHTML(k, p, i, animate) {
+  const v = sc(p), unv = v === null, pick = !animate && i === 0 && !unv;
+  return `<button class="opt ${pick ? "pick" : ""} ${unv ? "unv" : ""} ${animate ? "enter" : ""}" data-prod="${k}|${p.n}">
+    <span class="lead">${pick ? '<span class="dot"></span>' : ""}</span>
+    <span class="pn">${p.n}${unv ? '' : ""}</span>
+    <span class="sv">${animate ? "" : unv ? "no data" : fmt(v)}</span><span class="chev">›</span></button>`;
+}
+function renderList() {
+  setShopNames();
+  $("gchips").innerHTML = GOALS.map((g) => `<button class="gchip ${g.k === st.goal ? "on" : ""}" data-gchip="${g.k}">${g.t}</button>`).join("");
+  $("groups").innerHTML = st.list.map((k) => {
+    const r = ranked(k), best = r[0], open = st.open === k;
+    return `<div class="group ${open ? "open" : ""}" data-k="${k}">
+      <button class="ghead" data-cat="${k}" aria-expanded="${open}"><span class="nm">${k}</span><span class="ct">${r.length} on the shelf</span><span class="sp"></span>
+        <span class="best">${sc(best) !== null ? `<i></i>${best.n}` : ""}</span><span class="chev">›</span></button>
+      <div class="gbody"><div class="colhead"><span>Product</span><span>${goalT()} score</span></div>
+        <div class="rows">${r.map((p, i) => rowHTML(k, p, i, false)).join("")}</div>
+        <div class="gfoot"><span></span><button class="link" data-rm="${k}">Remove ${k} from list</button></div></div></div>`;
+  }).join("") || `<p class="note">Your list is empty. Search above, for example “pasta”.</p>`;
+}
+function animateShelf(k, prevOrder) {
+  // Show the shelf in its old order (or as it stands), then move the products into the new ranking.
+  const box = document.querySelector(`.group[data-k="${k}"] .rows`); if (!box) return;
+  const from = prevOrder || shelf(k), to = ranked(k);
+  box.innerHTML = from.map((p, i) => rowHTML(k, p, i, true)).join("");
+  const els = [...box.children];
+  els.forEach((b, i) => setTimeout(() => b.classList.remove("enter"), prevOrder ? 0 : 70 * i));
+  setTimeout(() => els.forEach((b, i) => { const v = sc(from[i]), sv = b.querySelector(".sv"); if (v === null) sv.textContent = "no data"; else countUp(sv, v, 600); }), prevOrder ? 0 : 400);
+  setTimeout(() => {
+    const first = els.map((b) => b.getBoundingClientRect().top);
+    to.forEach((p) => box.appendChild(els[from.indexOf(p)]));
+    els.forEach((b, i) => { const d = first[i] - b.getBoundingClientRect().top; b.style.transition = "none"; b.style.transform = `translateY(${d}px)`; });
+    requestAnimationFrame(() => requestAnimationFrame(() => els.forEach((b) => { b.style.transition = ""; b.style.transform = ""; })));
+    setTimeout(() => {
+      if (sc(to[0]) === null) return;
+      const best = els[from.indexOf(to[0])];
+      best.classList.add("pick"); best.querySelector(".lead").innerHTML = '<span class="dot"></span>';
+    }, 520);
+  }, prevOrder ? 650 : 1200);
+}
+
+// ===================== Search =====================
+function suggest(q) {
+  q = norm(q); if (!q) return [];
+  const out = [];
+  for (const [k, words] of Object.entries(SYN)) if (words.some((w) => norm(w).startsWith(q) || (q.length > 2 && norm(w).includes(q)))) out.push({ k });
+  if (q.length > 1) for (const [k, c] of Object.entries(DATA)) for (const p of c.items) if (norm(p.n).includes(q)) out.push({ k, p });
+  return out.slice(0, 6);
+}
+function closeSugg() { document.querySelectorAll(".sugg").forEach((x) => x.classList.remove("on")); }
+function pick(r) {
+  if (!st.list.includes(r.k)) st.list.unshift(r.k);
+  st.open = r.k;
+  document.querySelectorAll(".search input").forEach((i) => { i.value = ""; i.blur(); });
+  closeSugg();
+  if (r.p) { st.prod = r.p; if (hist[hist.length - 1] !== "list") show("list"); show("product"); return; }
+  if (hist[hist.length - 1] !== "list") show("list"); else renderList();
+  animateShelf(r.k);
+}
+document.querySelectorAll("[data-search]").forEach((wrap) => {
+  const inp = wrap.querySelector("input"), box = wrap.querySelector(".sugg");
+  let res = [], hl = 0;
+  const draw = () => {
+    res = suggest(inp.value); hl = 0;
+    if (!inp.value.trim()) { box.classList.remove("on"); return; }
+    box.innerHTML = res.length
+      ? res.map((r, i) => `<button class="${i === 0 ? "hl" : ""}" data-i="${i}" role="option">${r.p ? r.p.n : `<span style="text-transform:capitalize">${r.k}</span>`}<small>${r.p ? "in " + r.k : shelf(r.k).length + " on the shelf in " + shop().s}</small></button>`).join("")
+      : `<div class="empty">“${inp.value.trim()}” is not in this shop yet. Try ${Object.keys(DATA).join(", ")}.</div>`;
+    box.classList.add("on");
+  };
+  inp.addEventListener("input", draw);
+  inp.addEventListener("focus", draw);
+  inp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); if (res[hl]) pick(res[hl]); }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); if (!res.length) return; hl = (hl + (e.key === "ArrowDown" ? 1 : res.length - 1)) % res.length; box.querySelectorAll("button").forEach((b, i) => b.classList.toggle("hl", i === hl)); }
+    if (e.key === "Escape") { box.classList.remove("on"); inp.blur(); }
+  });
+  box.addEventListener("mousedown", (e) => e.preventDefault());
+  box.addEventListener("click", (e) => { const b = e.target.closest("button[data-i]"); if (b) pick(res[+b.dataset.i]); });
+  inp.addEventListener("blur", () => setTimeout(() => box.classList.remove("on"), 120));
+});
+
+// ===================== Product =====================
+function renderProduct() {
+  const p = st.prod, k = catOf(p), v = sc(p), unv = v === null, r = ranked(k);
+  const verified = r.filter((x) => sc(x) !== null), pos = verified.indexOf(p) + 1;
+  $("pCtx").textContent = goalT();
+  $("pImg").style.display = p.img ? "" : "none"; $("pPh").style.display = p.img ? "none" : ""; if (p.img) { $("pImg").src = "../img/" + p.img; $("pImg").alt = p.n; }
+  $("pName").textContent = p.n;
+  const parts = p.d.split(" · ");
+  $("pOrigin").innerHTML = `${parts[0]}${parts.length > 1 ? `<br>${parts.slice(1).join(" · ")}` : ""}<br><span style="color:#fff">CHF ${p.pr.toFixed(2)}</span>`;
+  $("pScore").parentElement.style.display = unv ? "none" : ""; $("pScore").textContent = "0";
+  $("pScoreL").textContent = unv ? "No verified score yet" : `${goalT()} score`; $("pScoreL").style.marginTop = unv ? "18px" : "";
+  const onShelf = p.shops.includes(st.shop);
+  $("pRank").innerHTML = !onShelf ? `Not on the shelf in ${shop().s}` : unv ? "" : pos === 1 ? `<i></i>Point’s pick: best of ${verified.length} in ${shop().s}` : `Number ${pos} of ${verified.length} in ${shop().s}`;
+  if (unv) {
+    $("pBody").innerHTML = `<div class="unvbox">The producer has not shared verified data yet. Point shows the product, but never recommends it.</div>`;
+  } else {
+    $("pBody").innerHTML = `<div class="label" style="margin-top:0">Why this score</div>` +
+      Object.entries(DIMS).map(([dk, dl]) => `<div class="dimrow ${dk === st.goal ? "hi" : ""}"><span>${dl}</span><div class="thin"><i style="width:${p.s[dk]}%"></i></div><b>${Math.round(p.s[dk])}</b></div>`).join("") +
+      `<div class="proof"><div>✓ Verifiable score<small>Proof 0x${hash(p.n)}${hash(p.d).slice(0, 4)}</small></div><button id="verify">Verify</button></div>`;
+    const bars = [...$("pBody").querySelectorAll(".thin i")], w = bars.map((b) => parseFloat(b.style.width));
+    bars.forEach((b) => (b.style.width = "0"));
+    const t0 = performance.now();
+    const grow = (t) => { const q = Math.min(1, (t - t0) / 900), e = 1 - Math.pow(1 - q, 3); bars.forEach((b, i) => (b.style.width = w[i] * e + "%")); if (q < 1) requestAnimationFrame(grow); };
+    requestAnimationFrame(grow);
+    countUp($("pScore"), v);
+  }
+  const here = p.shops.includes(st.shop);
+  $("findBtn").textContent = here ? `Find it in ${shop().s}` : `Not in ${shop().s}: see shops`;
+  $("findBtn").dataset.go = here ? "floor" : "map";
+}
+
+// ===================== Map =====================
+let map, layer;
+function renderMap() {
+  const p = hist.includes("product") ? st.prod : null;
+  st.mapMode = p ? "product" : "browse";
+  $("mapCtx").textContent = p ? p.n : "Choose your shop";
+  $("legend").innerHTML = p
+    ? `<span><i style="background:var(--green)"></i>Has ${p.n}</span><span><i></i>Not in stock</span><span><i style="background:var(--blue)"></i>You</span>`
+    : `<span><i style="background:var(--green)"></i>Shop</span><span><i style="background:var(--blue)"></i>You</span>`;
+  if (!map) {
+    map = L.map("map", { zoomControl: false, attributionControl: true, scrollWheelZoom: false });
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+    layer = L.layerGroup().addTo(map);
+    map.setView([47.427, 9.382], 14);
+  }
+  layer.clearLayers();
+  const rows = SHOPS.map((s) => ({ s, ok: !p || p.shops.includes(s.id), km: map.distance(ME, s.ll) / 1000 })).sort((a, b) => (b.ok - a.ok) || (a.km - b.km));
+  L.marker(ME, { icon: L.divIcon({ className: "", html: '<div class="pin me"></div>', iconSize: [16, 16] }), keyboard: false, zIndexOffset: 500 }).addTo(layer);
+  rows.forEach(({ s, ok }) => L.marker(s.ll, { icon: L.divIcon({ className: "", html: `<div class="pin ${ok ? "ok" : ""}"></div>`, iconSize: [16, 16] }) }).addTo(layer)
+    .bindTooltip(s.s, { direction: s.dir, offset: s.dir === "right" ? [10, 0] : s.dir === "bottom" ? [0, 10] : [0, -8], permanent: true }).on("click", () => { if (ok) chooseShop(s.id); }));
+  $("shops").innerHTML = rows.map(({ s, ok, km }) => `<button class="shop ${p && s.id === st.shop ? "cur" : ""}" ${p && !ok ? 'disabled style="cursor:default;opacity:.8"' : `data-shop="${s.id}"`}>
+      <div class="info"><b>${s.n}</b><span>${s.a} · <span class="nw">${km.toFixed(1)} km</span>${p && s.id === st.shop ? ' · <span class="nw">your shop</span>' : ""}</span></div>
+      <em class="${p ? (ok ? "ok" : "no") : ""}">${p ? (ok ? "In stock" : "Not here") : (s.id === st.shop ? "✓ Selected" : "Choose")}</em><span class="chev" style="${p && !ok ? "visibility:hidden" : ""}">›</span></button>`).join("");
+  setTimeout(() => { map.invalidateSize(); map.fitBounds(L.latLngBounds([ME, ...SHOPS.map((x) => x.ll)]), { padding: [34, 34] }); }, 60);
+}
+function chooseShop(id) {
+  st.shop = id; setShopNames();
+  if (st.mapMode === "product") { if (st.prod.shops.includes(id)) show("floor"); else renderMap(); }
+  else back();
+}
+
+// ===================== Floor plan =====================
+function renderFloor() {
+  const p = st.prod, k = catOf(p), s = shop(), inStock = p.shops.includes(s.id), A = DATA[k].aisle;
+  $("floorCtx").textContent = s.n;
+  const W = 320, x0 = 22, gap = 48, aw = 30;
+  const aisles = AISLES.map((lab, i) => {
+    const x = x0 + i * gap, on = i + 1 === A && inStock;
+    return `<rect x="${x}" y="44" width="${aw}" height="150" rx="5" fill="${on ? "#4C8DFF" : "none"}" stroke="${on ? "#4C8DFF" : "rgba(255,255,255,.6)"}" stroke-width="1.2"/>
+      <text x="${x + aw / 2}" y="34" fill="#fff" font-size="12" text-anchor="middle" font-family="Jost" opacity="${on ? 1 : .75}">${i + 1}</text>
+      <text x="${x + aw / 2}" y="100" fill="${on ? "#fff" : "rgba(255,255,255,.75)"}" font-size="10" text-anchor="middle" font-family="Jost" letter-spacing="1.2" transform="rotate(-90 ${x + aw / 2} 100)">${lab.toUpperCase()}</text>`;
+  }).join("");
+  const px = x0 + (A - 1) * gap + aw / 2;
+  $("plan").innerHTML = `<svg viewBox="0 0 ${W} 280" role="img" aria-label="Shop floor plan${inStock ? `, ${p.n} in aisle ${A}` : ""}">
+    <rect x="2" y="2" width="${W - 4}" height="276" rx="12" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>
+    ${aisles}
+    ${inStock ? `<path class="draw" d="M 46 236 L 46 214 L ${px} 214 L ${px} 172" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="300" stroke-dashoffset="300"/>
+      <circle cx="${px}" cy="166" r="7" fill="#3CCB6E" class="pulse"/><circle cx="${px}" cy="166" r="6" fill="#3CCB6E" stroke="#fff" stroke-width="1.5"/>` : ""}
+    <circle cx="46" cy="240" r="7" fill="#4C8DFF" stroke="#fff" stroke-width="1.5"/>
+    <text x="60" y="244" fill="#fff" font-size="12" font-family="Jost">You · entrance</text>
+  </svg>`;
+  $("aisle").innerHTML = inStock ? `Aisle ${A}<small>${AISLES[A - 1]}</small>` : `Not in<br>this shop`;
+  $("shelf").textContent = inStock ? `${p.n} · ${p.shelf}` : `${p.n} is at ${SHOPS.filter((x) => p.shops.includes(x.id)).map((x) => x.s).join(", ")}.`;
+  const next = st.list[st.list.indexOf(k) + 1];
+  $("floorActs").innerHTML = (inStock ? "" : `<button class="act solid" data-go="map">See other shops</button>`) +
+    (next ? `<button class="act ${inStock ? "solid" : ""}" data-next="${next}">Next on your list: ${next}</button>` : "") +
+    `<button class="act" data-tolist="1">Back to your list</button>`;
+}
+
+// ===================== Clicks =====================
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.hasAttribute("data-back")) return back();
+  if (t.dataset.goal) { st.goal = t.dataset.goal; return show("list"); }
+  if (t.dataset.chip) return pick({ k: t.dataset.chip });
+  if (t.dataset.gchip) {
+    const k = st.open, prev = k ? ranked(k) : null; st.goal = t.dataset.gchip; renderList(); if (k) animateShelf(k, prev); return;
+  }
+  if (t.dataset.cat) { const k = t.dataset.cat; st.open = st.open === k ? null : k; renderList(); if (st.open) animateShelf(k); return; }
+  if (t.dataset.rm) { st.list = st.list.filter((k) => k !== t.dataset.rm); if (st.open === t.dataset.rm) st.open = null; return renderList(); }
+  if (t.dataset.prod) { const [k, n] = t.dataset.prod.split("|"); st.prod = DATA[k].items.find((p) => p.n === n); return show("product"); }
+  if (t.dataset.shop) return chooseShop(t.dataset.shop);
+  if (t.dataset.next) { st.open = t.dataset.next; while (hist.length > 1 && hist[hist.length - 1] !== "list") hist.pop(); show("list", false); animateShelf(st.open); return; }
+  if (t.dataset.tolist) { while (hist.length > 1 && hist[hist.length - 1] !== "list") hist.pop(); return show("list", false); }
+  if (t.dataset.go) return show(t.dataset.go);
+  if (t.id === "verify") { t.textContent = "Checking…"; t.disabled = true; setTimeout(() => { t.textContent = "✓ Valid"; }, 700); }
+});
+
+// ===================== Auto-play demo (#demo, key D, or message "demo") =====================
+let playing = false;
+const PACE = 1.08; // demo speed: higher = slower
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms * PACE));
+const tapEl = document.createElement("div"); tapEl.className = "tap"; document.body.appendChild(tapEl);
+const capEl = document.createElement("div"); capEl.className = "cap"; document.body.appendChild(capEl);
+// Captions are off: the presenter explains each step. The pause keeps the pace.
+const SHOW_CAPTIONS = false;
+async function cap(n, text) { if (SHOW_CAPTIONS) { capEl.classList.remove("on"); await sleep(250); capEl.innerHTML = (n ? `<b>${n}</b>` : "") + text; capEl.classList.add("on"); await sleep(900); } else await sleep(1150); }
+const outro = document.createElement("div"); outro.className = "outro"; outro.innerHTML = "<div>Right to<br>the point.</div>"; document.body.appendChild(outro);
+async function tap(el) {
+  if (!el) return;
+  el.scrollIntoView({ block: "nearest", behavior: "smooth" }); await sleep(450);
+  const r = el.getBoundingClientRect();
+  tapEl.style.left = r.left + r.width / 2 + "px"; tapEl.style.top = r.top + r.height / 2 + "px"; tapEl.style.opacity = 1;
+  await sleep(800); tapEl.classList.remove("down"); void tapEl.offsetWidth; tapEl.classList.add("down");
+  await sleep(300); if (el.tagName === "INPUT") el.focus(); else el.click(); await sleep(150); tapEl.style.opacity = 0;
+}
+async function type(el, text) { for (const c of text) { el.value += c; el.dispatchEvent(new Event("input")); await sleep(240); } await sleep(700); }
+async function demo() {
+  if (playing) return; playing = true; outro.classList.remove("on");
+  Object.assign(st, { goal: "plastic", list: ["oranges", "tomatoes", "milk"], open: null, shop: "mp" });
+  hist.length = 1; show("home", false); $("q").value = ""; await sleep(900);
+  const q = $("q");
+  await cap(1, "Search what you need"); await tap(q); await type(q, "pasta");
+  await tap(document.querySelector("#home .sugg button"));
+  await cap(2, "Point ranks every pasta on the shelf for your goal: less plastic"); await sleep(4200);
+  await cap(3, "Change the goal to Km 0: the Swiss pasta wins"); await tap(document.querySelector('[data-gchip="km0"]')); await sleep(3800);
+  await cap(0, "Back to less plastic"); await tap(document.querySelector('[data-gchip="plastic"]')); await sleep(3000);
+  await cap(4, "Why this score: six dimensions"); await tap(document.querySelector(".group.open .opt.pick")); await sleep(3800);
+  await cap(5, "Anyone can check the score"); await tap($("verify")); await sleep(2600);
+  await cap(6, "Which shops nearby have it"); await tap(document.querySelector('#product [data-go="map"]')); await sleep(4500);
+  await cap(7, "Pick a shop: Point shows the aisle"); await tap(document.querySelector('#shops [data-shop="mp"]')); await sleep(4500);
+  capEl.classList.remove("on");
+  outro.classList.add("on"); await sleep(3000); outro.classList.remove("on");
+  playing = false;
+}
+addEventListener("keydown", (e) => { if ((e.key === "d" || e.key === "D") && !(document.activeElement && document.activeElement.tagName === "INPUT")) demo(); });
+addEventListener("message", (e) => { if (e.data === "demo") demo(); });
+
+// ===================== Start =====================
+renderHome();
+(function () {
+  const h = location.hash.slice(1); if (!h) return;
+  if (h === "demo") { setTimeout(demo, 800); return; }
+  st.prod = DATA.pasta.items[0]; st.open = "pasta";
+  ({ list: ["list"], product: ["list", "product"], map: ["list", "product", "map"], floor: ["list", "product", "floor"], profile: ["profile"] }[h] || []).forEach((id) => show(id));
+})();
+</script>
+</body>
+</html>

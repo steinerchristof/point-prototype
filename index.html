@@ -3,27 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#03072B">
+<meta name="theme-color" content="#01031A">
 <script>window.BARE_Q = "(max-width: 520px), (pointer: coarse) and (max-height: 520px)";</script>
 <title>Point · Right to the point</title>
-<meta name="description" content="Point finds the most sustainable product on the shelf, and shows you where it is. Clickable prototype.">
+<meta name="description" content="Point: a shopping list with a verified sustainability score under every word. Clickable prototype.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
 <style>
   :root { --bg: #01031A; --fg: #FFFFFF; --dim: rgba(255,255,255,.74); }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
-  body { background: radial-gradient(ellipse at 50% 45%, #0B1550 0%, var(--bg) 60%); color: var(--fg); font: 300 16px/1.45 "Jost", Futura, sans-serif; overflow: hidden; }
+  body { background: radial-gradient(ellipse at 50% 45%, #0B1550 0%, var(--bg) 60%); color: var(--fg); font: 400 16px/1.45 "DM Sans", sans-serif; overflow: hidden; }
   .top { position: fixed; top: 24px; left: 36px; right: 36px; display: flex; justify-content: space-between; align-items: center; z-index: 3; }
   .mark { display: flex; align-items: center; gap: 12px; letter-spacing: .5em; font-size: 15px; }
   .mark i { width: 18px; height: 18px; border-radius: 50%; background: conic-gradient(from 90deg, #6E5BFF, #1F6BFF, #8FD8FF, #6E5BFF); -webkit-mask: radial-gradient(circle, transparent 52%, #000 55%); mask: radial-gradient(circle, transparent 52%, #000 55%); }
   .ctrls { display: flex; gap: 10px; }
-  .ctrls button { font: 400 13px "Jost", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #fff; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.45); border-radius: 18px; padding: 8px 16px; cursor: pointer; }
+  .ctrls button { font: 500 13px "DM Sans", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #fff; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.45); border-radius: 18px; padding: 8px 16px; cursor: pointer; }
   .ctrls button:hover { background: rgba(255,255,255,.14); border-color: #fff; }
   .ctrls kbd { font: inherit; opacity: .6; margin-left: 6px; }
   .side { position: fixed; left: 36px; bottom: 34px; max-width: 320px; z-index: 3; }
-  .side h1 { font-weight: 300; font-size: 30px; letter-spacing: .2em; text-transform: uppercase; line-height: 1.2; margin: 0 0 12px; }
+  .side h1 { font-weight: 700; font-size: 34px; letter-spacing: -.01em; line-height: 1.15; margin: 0 0 12px; }
   .side p { color: var(--dim); margin: 0; }
   .foot { position: fixed; right: 36px; bottom: 34px; color: var(--dim); font-size: 12px; letter-spacing: .06em; text-align: right; z-index: 3; line-height: 1.6; }
   .foot a { color: var(--dim); }
@@ -36,20 +36,20 @@
   .iphone::before, .iphone::after { content: ""; position: absolute; width: 4px; border-radius: 2px; background: #2A2C31; }
   .iphone::before { left: -4px; top: 190px; height: 64px; box-shadow: 0 90px 0 #2A2C31; }
   .iphone::after { right: -4px; top: 250px; height: 100px; }
-  .screen { position: relative; width: 100%; height: 100%; border-radius: 52px; overflow: hidden; background: #03072B; }
+  .screen { position: relative; width: 100%; height: 100%; border-radius: 52px; overflow: hidden; background: #F6F8FC; }
   .island { position: absolute; top: 13px; left: 50%; transform: translateX(-50%); width: 120px; height: 34px; border-radius: 20px; background: #000; z-index: 2; pointer-events: none; }
-  .status { position: absolute; top: 18px; left: 34px; right: 30px; display: flex; justify-content: space-between; font: 500 15px -apple-system, "SF Pro Text", sans-serif; z-index: 2; pointer-events: none; }
+  .status { position: absolute; top: 18px; left: 34px; right: 30px; display: flex; justify-content: space-between; font: 600 15px -apple-system, "SF Pro Text", sans-serif; color: #0B1220; z-index: 2; pointer-events: none; }
   .status span:last-child { letter-spacing: 2px; font-size: 12px; }
   iframe { width: 100%; height: 100%; border: 0; display: block; }
 
   /* presentation mode: only the phone, as large as the screen allows */
-  body.present .side, body.present .foot, body.present .mark, body.present #play { display: none; }
+  body.present .side, body.present .foot, body.present .mark, body.present #play, body.present #next { display: none; }
   body.present .top { justify-content: flex-end; }
 
   @media (max-width: 900px) { .side, .foot { display: none; } }
   /* phones (portrait) and phones held sideways: the app itself, full screen, no drawn frame */
   @media (max-width: 520px), (pointer: coarse) and (max-height: 520px) {
-    html, body { background: #03072B; }
+    html, body { background: #F6F8FC; }
     body { overflow: hidden; }
     .top { display: none; }
     .stage { height: 100dvh; display: block; }
@@ -65,7 +65,8 @@
   <div class="top">
     <div class="mark"><i></i>POINT</div>
     <div class="ctrls">
-      <button id="play" title="Plays the demo by itself (key D)">▶ Play demo<kbd>D</kbd></button>
+      <button id="play" title="Plays the demo by itself, about 70 s (key D)">▶ Play demo<kbd>D</kbd></button>
+      <button id="next" title="One step at a time (→, PageDown or a presentation clicker)">Next step<kbd>→</kbd></button>
       <button id="fs" title="Presentation mode (key F, Esc to leave)">⤢ Present<kbd>F</kbd></button>
     </div>
   </div>
@@ -83,10 +84,10 @@
   </div>
 
   <div class="side">
-    <h1>Right to<br>the point.</h1>
-    <p>Search what you need. Point ranks every product on the shelf by your goal, and shows you where it is in the shop.</p>
+    <h1>Right to<br><span style="color:#A9B8FF">the point.</span></h1>
+    <p>Write your shopping list as always. Point puts the best-scoring verified product under every word, and shows you where it is in the shop.</p>
   </div>
-  <div class="foot">Prototype · HSG Fintech 2026 · Illustrative data, not measured<br>Photos: Wikimedia Commons (<a href="https://github.com/steinerchristof/point-prototype/blob/main/CREDITS.md">credits</a>) · Map: © OpenStreetMap contributors</div>
+  <div class="foot">Prototype · HSG Fintech 2026 · Illustrative data, not measured · Not affiliated with Migros<br>Photos: Wikimedia Commons (<a href="https://github.com/steinerchristof/point-prototype/blob/main/CREDITS.md">credits</a>) · Map: © OpenStreetMap contributors</div>
 
 <script>
   const frame = document.getElementById("app");
@@ -114,9 +115,12 @@
   document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("present")) setPresent(false); else setTimeout(fit, 80); });
 
   const play = () => { frame.contentWindow.postMessage("demo", "*"); };
+  const next = () => { frame.contentWindow.postMessage("step", "*"); };
   document.getElementById("play").addEventListener("click", play);
+  document.getElementById("next").addEventListener("click", next);
   addEventListener("keydown", (e) => {
     if (e.key === "d" || e.key === "D") play();
+    if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === "n" || e.key === "N") { e.preventDefault(); next(); }
     if (e.key === "f" || e.key === "F") setPresent(!document.body.classList.contains("present"));
     if (e.key === "Escape" && document.body.classList.contains("present")) setPresent(false);
   });

@@ -3,14 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#03072B">
+<meta name="theme-color" content="#F6F8FC">
 <title>Point App</title>
-<meta name="description" content="Point app prototype: search a product, see the most sustainable one on the shelf, and find it in the shop.">
+<meta name="description" content="Point app prototype: write your shopping list as always. Point puts the best-scoring verified product under every word and shows you where it is in the shop.">
 <script>
   // On a desktop the app is always shown inside the iPhone frame (index.html).
   if (/embed/.test(location.search)) {
     document.documentElement.classList.add("embed");
-    // Inside index.html: "bare" when the page shows the app without the iPhone frame (real phones).
     const bareCheck = () => { try { document.documentElement.classList.toggle("bare", parent.matchMedia(parent.BARE_Q).matches); } catch (e) {} };
     bareCheck(); try { parent.addEventListener("resize", bareCheck); } catch (e) {}
   }
@@ -19,615 +18,873 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
   :root {
-    --bg: #03072B; --panel: #0B1446; --fg: #FFFFFF;
-    --dim: rgba(255,255,255,.74);   /* secondary text, contrast > 7:1 on --bg */
-    --faint: rgba(255,255,255,.35); /* lines and borders only */
-    --green: #3CCB6E; --blue: #4C8DFF; --pad: 24px;
+    --paper: #F6F8FC; --card: #FFFFFF; --ink: #0B1220; --ink2: #3F4A5C; --ink3: #5F6B7E; --line: #E3E8F0;
+    --blue: #1F6BFF; --blue-soft: #E8F0FF; --violet: #7B5CFF; --cyan: #5CC8F0; --mid: #060B24;
+    --iris: conic-gradient(from 210deg, #1F6BFF, #7B5CFF, #5CC8F0, #1F6BFF);
+    --pad: 20px; --top: env(safe-area-inset-top, 0px); --bot: env(safe-area-inset-bottom, 0px);
   }
+  html.embed:not(.bare) { --top: 54px; --bot: 18px; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; height: 100%; }
-  body { background: var(--bg); color: var(--fg); font: 300 16px/1.45 "Jost", "Century Gothic", Futura, sans-serif; overflow: hidden; }
-  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
-  button:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  html, body { margin: 0; height: 100%; background: var(--paper); overflow: hidden; }
+  body { position: relative; overflow: clip; } /* nothing can scroll the page sideways */
+  body { color: var(--ink); font: 400 15px/1.4 "DM Sans", -apple-system, "Segoe UI", sans-serif; overflow: hidden; -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  input { font: inherit; color: inherit; }
 
-  .screen { position: absolute; inset: 0; padding: 54px max(var(--pad), calc((100% - 520px) / 2)) calc(32px + env(safe-area-inset-bottom)); overflow-y: auto; display: none;
-    background: radial-gradient(ellipse at 50% 22%, #0E1A5A 0%, var(--bg) 62%); scrollbar-width: none; }
+  .screen { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding: calc(var(--top) + 8px) var(--pad) calc(var(--bot) + 24px); background: var(--paper); opacity: 0; pointer-events: none; transition: opacity 0s linear .32s; z-index: 1; scrollbar-width: none; }
   .screen::-webkit-scrollbar { display: none; }
-  /* real phone (no drawn status bar): use the device safe area instead */
-  .bare .screen { padding-top: max(18px, calc(env(safe-area-inset-top) + 10px)); }
-  .screen.on { display: block; animation: in .25s ease; }
-  @keyframes in { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+  /* keeps scrolled content out from under the status bar */
+  body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: var(--top); background: var(--paper); z-index: 15; pointer-events: none; }
+  .screen.on { opacity: 1; pointer-events: auto; z-index: 2; transition: none; animation: enter .32s cubic-bezier(.2,.8,.2,1); }
+  @keyframes enter { from { opacity: 0; transform: translateX(24px); } }
 
-  /* top bar */
-  .bar { display: flex; justify-content: space-between; align-items: center; min-height: 34px; gap: 12px; }
-  .icons { display: flex; gap: 14px; align-items: center; }
-  .icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; }
-  .icon svg { width: 21px; height: 21px; stroke: #fff; fill: none; stroke-width: 1.5; }
-  .avatar { width: 30px; height: 30px; border-radius: 50%; border: 1px solid #fff; display: grid; place-items: center; font-size: 12px; font-weight: 400; }
-  .ctx { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); text-align: right; }
-  .shopbtn { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); border: 1px solid var(--faint); border-radius: 15px; padding: 5px 12px; }
-  .shopbtn b { color: #fff; font-weight: 400; }
+  /* nav */
+  .nav { display: flex; justify-content: space-between; align-items: center; min-height: 36px; }
+  .navbtn { color: var(--blue); font-size: 16px; font-weight: 500; display: inline-flex; align-items: center; gap: 2px; padding: 6px 0; }
+  .navbtn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  h1 { font-size: 30px; line-height: 1.15; font-weight: 700; letter-spacing: -.01em; margin: 6px 0 10px; }
+  .meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 15px; background: var(--card); border: 1px solid var(--line); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .pill svg { width: 13px; height: 13px; fill: var(--blue); flex: none; }
+  .pill .car { width: 10px; height: 10px; fill: none; stroke: var(--ink2); stroke-width: 2.2; }
+  .chip { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; border-radius: 15px; background: var(--blue-soft); color: var(--blue); font-size: 13px; font-weight: 600; white-space: nowrap; }
 
-  /* type scale: display (right, brand) / label / body */
-  .display { font-size: 24px; letter-spacing: .22em; text-transform: uppercase; text-align: right; line-height: 1.22; font-weight: 300; margin: 14px 0 0; }
-  .label { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); margin: 22px 0 10px; }
-  .slash { height: 1px; background: rgba(255,255,255,.7); transform: rotate(-2deg); margin: 22px -4px; }
-  .note { font-size: 13px; color: var(--dim); margin: 18px 0 0; }
+  /* ring: the brand mark and the status of every word */
+  .ring { width: 18px; height: 18px; border-radius: 50%; flex: none; background: var(--iris); -webkit-mask: radial-gradient(circle, transparent 32%, #000 36%); mask: radial-gradient(circle, transparent 32%, #000 36%); transition: opacity .3s; }
+  .ring.looking { opacity: .35; animation: pulse 1s ease-in-out infinite; }
+  .ring.none { background: #C9D0DB; }
+  .ring.empty { opacity: 0; }
+  @keyframes pulse { 50% { opacity: .12; } }
+  .wm { display: inline-flex; align-items: baseline; font-weight: 700; letter-spacing: -.02em; }
+  .wm i { display: inline-block; width: .62em; height: .62em; margin: 0 .03em; border-radius: 50%; background: var(--iris); -webkit-mask: radial-gradient(circle, transparent 30%, #000 34%); mask: radial-gradient(circle, transparent 30%, #000 34%); }
 
-  /* home */
-  .logo { display: grid; place-items: center; height: 150px; }
-  .logo .ring { width: 96px; height: 96px; border-radius: 50%; background: conic-gradient(from 90deg, #6E5BFF, #4E73FF, #1F6BFF, #3D8BFF, #8FD8FF, #7C7BFF, #6E5BFF); -webkit-mask: radial-gradient(circle, transparent 54%, #000 56%); mask: radial-gradient(circle, transparent 54%, #000 56%); filter: drop-shadow(0 0 16px rgba(110,91,255,.7)); }
-  .word { text-align: center; font-size: 15px; letter-spacing: .5em; padding-left: .5em; margin: -4px 0 18px; }
-  .goal { display: block; width: 100%; padding: 4px 0; }
-  .goal h2 { font-weight: 300; font-size: 24px; line-height: 1.18; margin: 0; letter-spacing: .2em; text-transform: uppercase; text-align: right; }
-  .meter { height: 8px; border: 1px solid #fff; border-radius: 5px; margin-top: 14px; overflow: hidden; }
-  .meter i { display: block; height: 100%; background: #fff; }
-  .meter-l { display: flex; justify-content: space-between; font-size: 13px; color: var(--dim); margin-top: 6px; }
+  /* lists */
+  .search { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border-radius: 11px; background: #E9EDF4; margin: 4px 0 18px; color: var(--ink3); }
+  .search svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; flex: none; }
+  .search input { border: 0; outline: 0; background: none; flex: 1; min-width: 0; font-size: 15px; color: var(--ink); }
+  .search input::placeholder { color: var(--ink3); }
+  .sec { font-size: 17px; font-weight: 700; margin: 6px 0 8px; }
+  .group { background: var(--card); border-radius: 14px; overflow: hidden; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(11,18,32,.04); }
+  .lrow { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .lrow:last-child { border-bottom: 0; }
+  .lrow > div { flex: 1; min-width: 0; }
+  .lrow b { display: block; font-size: 15px; font-weight: 600; }
+  .lrow small { display: block; font-size: 13px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lrow .st { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 12.5px; font-weight: 600; color: var(--blue); }
+  .lrow .st.grey { color: var(--ink3); font-weight: 500; }
+  .lrow .st .ring { width: 13px; height: 13px; }
+  .chev { width: 14px; height: 14px; stroke: #A9B2C1; fill: none; stroke-width: 2.4; flex: none; }
+  .toolbar { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px var(--pad) calc(var(--bot) + 10px); display: flex; justify-content: space-between; align-items: center; background: rgba(246,248,252,.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink3); z-index: 5; }
+  .toolbar button { width: 40px; height: 40px; display: grid; place-items: center; color: var(--blue); margin: -3px -8px -3px 0; }
+  .toolbar svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .hint { font-size: 13px; color: var(--ink3); text-align: center; margin: 4px 0 80px; line-height: 1.5; }
 
-  /* search */
-  .search { position: relative; }
-  .search .box { display: flex; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,.75); border-radius: 26px; padding: 11px 16px; background: rgba(255,255,255,.07); }
-  .search .box:focus-within { border-color: #fff; background: rgba(255,255,255,.12); }
-  .search svg { flex: none; }
-  .search input { flex: 1; min-width: 0; background: transparent; border: 0; color: #fff; font: inherit; font-size: 16px; outline: none; }
-  .search input::placeholder { color: rgba(255,255,255,.7); }
-  .sugg { position: absolute; left: 0; right: 0; top: calc(100% + 6px); background: var(--panel); border: 1px solid var(--faint); border-radius: 14px; overflow: hidden; z-index: 20; display: none; box-shadow: 0 14px 30px rgba(0,0,0,.45); }
-  .sugg.on { display: block; }
-  .sugg button { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
-  .sugg button:last-child { border-bottom: 0; }
-  .sugg button.hl { background: rgba(255,255,255,.1); }
-  .sugg small { color: var(--dim); font-size: 13px; }
-  .sugg .empty { padding: 12px 16px; color: var(--dim); font-size: 14px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .chip, .gchip { border: 1px solid rgba(255,255,255,.5); border-radius: 16px; padding: 5px 13px; font-size: 14px; white-space: nowrap; }
-  .chip { text-transform: capitalize; }
-  .gchip.on { background: #fff; color: var(--bg); border-color: #fff; font-weight: 500; }
+  /* note: write mode */
+  .date { text-align: center; font-size: 12.5px; color: var(--ink3); margin: 2px 0 8px; }
+  .title-in { width: 100%; border: 0; outline: 0; background: none; font-size: 26px; font-weight: 700; padding: 4px 0 8px; }
+  .title-in::placeholder { color: #B5BDCA; }
+  .line { display: flex; align-items: center; gap: 10px; min-height: 42px; }
+  .line input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 18px; padding: 7px 0; }
+  .line input::placeholder { color: #B5BDCA; }
+  .whint { font-size: 13px; color: var(--ink3); margin-top: 16px; line-height: 1.5; }
 
-  /* list: groups and product rows */
-  .group { border-top: 1px solid var(--faint); }
-  .group:last-of-type { border-bottom: 1px solid var(--faint); }
-  .ghead { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 0; }
-  .ghead .nm { font-size: 19px; font-weight: 400; text-transform: capitalize; }
-  .ghead .ct { font-size: 13px; color: var(--dim); }
-  .ghead .sp { flex: 1; }
-  .ghead .best { font-size: 13px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
-  .ghead .best i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 6px; vertical-align: 1px; font-style: normal; }
-  .chev { color: var(--dim); font-size: 18px; transition: transform .2s; display: inline-block; width: 12px; text-align: center; }
-  .group.open .ghead .chev { transform: rotate(90deg); }
-  .gbody { display: none; padding: 0 0 12px; }
-  .group.open .gbody { display: block; }
-  .group.open .ghead .best { display: none; }
-  .colhead { display: flex; justify-content: space-between; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); padding: 2px 0 6px 20px; }
-  .opt { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 0; border-radius: 8px; transition: transform .5s cubic-bezier(.2,.8,.2,1), opacity .3s; }
-  .opt.enter { opacity: 0; transform: translateX(16px); }
-  .opt .lead { width: 10px; flex: none; display: grid; place-items: center; }
-  .opt .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pop .4s ease; }
-  @keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.6); } 100% { transform: scale(1); } }
-  .opt .pn { flex: 1; font-size: 16px; color: var(--dim); }
-  .opt.pick .pn { color: #fff; font-weight: 400; }
-  .opt .sv { font-size: 16px; font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
-  .opt.pick .sv { font-weight: 500; }
-  .opt.unv .pn, .opt.unv .sv { color: rgba(255,255,255,.55); font-style: italic; }
-  .opt .tag { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--green); border: 1px solid var(--green); border-radius: 10px; padding: 1px 7px; margin-left: 4px; font-style: normal; }
-  .gfoot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-left: 20px; }
-  .link { font-size: 13px; color: var(--dim); text-decoration: underline; text-underline-offset: 3px; }
+  /* note: done mode */
+  .items { border-top: 1px solid var(--line); margin-top: 8px; padding-bottom: 12px; }
+  .item { border-bottom: 1px solid var(--line); transition: opacity .25s; }
+  .item.faded > .ihead { opacity: .4; }
+  .ihead { display: block; width: 100%; text-align: left; padding: 12px 0; }
+  .irow { display: flex; align-items: center; gap: 10px; }
+  .word { flex: 1; min-width: 0; font-size: 19px; font-weight: 600; letter-spacing: -.005em; overflow-wrap: anywhere; }
+  .badge { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px 0 6px; border-radius: 12px; background: var(--blue-soft); color: var(--blue); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; flex: none; }
+  .badge .ring { width: 13px; height: 13px; }
+  .pickl { font-size: 13.5px; color: var(--ink2); margin-top: 2px; }
+  .place { font-size: 12.5px; color: var(--ink3); margin-top: 1px; }
+  .elsewhere { display: inline-flex; align-items: center; gap: 6px; margin-top: 9px; min-height: 32px; padding: 4px 12px; border-radius: 16px; background: var(--blue-soft); color: var(--blue); font-size: 13px; font-weight: 600; }
+  .elsewhere svg { width: 13px; height: 13px; fill: currentColor; flex: none; }
 
-  /* product */
-  .phead { display: flex; gap: 16px; align-items: center; justify-content: flex-end; margin-top: 12px; }
-  .ph0 { width: 96px; height: 96px; border-radius: 50%; border: 1px dashed rgba(255,255,255,.5); display: grid; place-items: center; font-size: 12px; letter-spacing: .12em; color: var(--dim); text-align: center; flex: none; }
-  .pimg { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,.4); flex: none; }
-  .pname { font-size: 24px; font-weight: 400; text-align: right; line-height: 1.2; }
-  .porigin { color: var(--dim); text-align: right; font-size: 14px; margin-top: 4px; }
-  .pscore { display: flex; justify-content: flex-end; align-items: baseline; gap: 6px; margin-top: 16px; }
-  .pscore b { font-weight: 300; font-size: 54px; line-height: 1; font-variant-numeric: tabular-nums; }
-  .pscore span { color: var(--dim); font-size: 16px; }
-  .pscore-l { text-align: right; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
-  .prank { text-align: right; font-size: 14px; margin-top: 6px; }
-  .prank i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 6px; vertical-align: 1px; }
-  .dimrow { display: grid; grid-template-columns: 74px 1fr 30px; gap: 12px; align-items: center; font-size: 14px; color: var(--dim); margin: 10px 0; }
-  .dimrow.hi { color: #fff; font-weight: 400; }
-  .thin { height: 5px; border: 1px solid rgba(255,255,255,.6); border-radius: 3px; overflow: hidden; }
-  .thin i { display: block; height: 100%; background: #fff; }
-  .dimrow b { font-weight: 400; color: #fff; text-align: right; font-variant-numeric: tabular-nums; }
-  .proof { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 18px; padding: 12px 14px; border: 1px solid rgba(60,203,110,.5); border-radius: 12px; }
-  .proof div { font-size: 14px; color: var(--green); }
-  .proof small { display: block; color: var(--dim); font-size: 12px; margin-top: 2px; }
-  .proof button { border: 1px solid var(--green); border-radius: 15px; padding: 5px 14px; font-size: 13px; letter-spacing: .12em; color: var(--green); white-space: nowrap; }
-  .actions { display: grid; gap: 10px; margin-top: 20px; }
-  .act { border: 1px solid #fff; border-radius: 24px; padding: 12px 0; text-align: center; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; }
-  .act.solid { background: #fff; color: var(--bg); font-weight: 500; }
-  .unvbox { margin-top: 18px; padding: 14px; border: 1px solid var(--faint); border-radius: 12px; color: var(--dim); font-size: 14px; }
-
-  /* map */
-  #map { height: 300px; margin: 16px calc(-1 * var(--pad)) 0; background: #0A1240; }
-  .leaflet-container { font: 300 13px "Jost", sans-serif; background: #0A1240; }
-  .leaflet-tile-pane { filter: invert(1) hue-rotate(195deg) brightness(.85) saturate(.5) contrast(.95); }
-  .leaflet-control-attribution { background: rgba(3,7,43,.75) !important; color: rgba(255,255,255,.6) !important; font-size: 10px !important; }
-  .leaflet-control-attribution a { color: rgba(255,255,255,.8) !important; }
-  .leaflet-tooltip { background: var(--panel); color: #fff; border: 1px solid var(--faint); font: 400 12px "Jost", sans-serif; box-shadow: none; }
-  .leaflet-tooltip-top:before { border-top-color: var(--panel); }
-  .leaflet-tooltip-bottom:before { border-bottom-color: var(--panel); }
-  .leaflet-tooltip-right:before { border-right-color: var(--panel); }
-  .pin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; background: var(--bg); }
-  .pin.ok { background: var(--green); box-shadow: 0 0 10px var(--green); }
-  .pin.me { background: var(--blue); box-shadow: 0 0 0 6px rgba(76,141,255,.3); }
-  .legend { display: flex; gap: 16px; font-size: 13px; color: var(--dim); margin: 12px 0 4px; flex-wrap: wrap; }
-  .legend span { display: inline-flex; align-items: center; gap: 6px; }
-  .legend i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid #fff; display: inline-block; }
-  .shop { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 0; border-bottom: 1px solid var(--faint); }
-  .shop .info { flex: 1; min-width: 0; }
-  .shop b { font-weight: 400; display: block; }
-  .shop span { font-size: 13px; color: var(--dim); }
-  .shop em { font-style: normal; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
-  .shop em.ok { color: var(--green); }
-  .shop em.no { color: var(--dim); }
-  .shop .nw { white-space: nowrap; }
-
-  /* floor plan */
-  .plan { margin: 16px 0 0; }
+  .card { background: var(--card); border-radius: 16px; padding: 14px; margin: 0 0 14px; box-shadow: 0 6px 24px rgba(11,18,32,.08); animation: pop .35s ease; }
+  @keyframes pop { from { opacity: 0; transform: translateY(-6px); } }
+  .prod { display: flex; gap: 12px; align-items: center; }
+  .thumb { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; flex: none; background: #EEF1F6; }
+  .ph { width: 64px; height: 64px; border-radius: 12px; flex: none; background: #EEF1F6; display: grid; place-items: center; font-size: 10px; letter-spacing: .08em; color: var(--ink3); text-align: center; line-height: 1.3; }
+  .prod .tx { flex: 1; min-width: 0; }
+  .brand { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--blue); font-weight: 700; }
+  .pname { font-size: 16px; font-weight: 700; line-height: 1.2; margin: 2px 0; }
+  .pmeta { font-size: 12.5px; color: var(--ink2); }
+  .sring { position: relative; width: 58px; height: 58px; flex: none; }
+  .sring svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+  .sring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .ver { display: block; text-align: center; font-size: 11px; color: var(--ink3); margin-top: 3px; }
+  .loc { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; margin: 14px 0 8px; }
+  .loc svg { width: 14px; height: 14px; fill: var(--blue); flex: none; }
+  .plan { background: #F2F5FA; border-radius: 12px; padding: 6px; }
   .plan svg { width: 100%; height: auto; display: block; }
-  .here { font-size: 24px; letter-spacing: .2em; text-transform: uppercase; text-align: right; margin-top: 18px; line-height: 1.25; }
-  .here small { display: block; font-size: 14px; letter-spacing: .16em; color: var(--dim); }
-  .shelfline { text-align: right; font-size: 15px; margin-top: 8px; }
-  @keyframes pulse { 0% { r: 7; opacity: .9; } 100% { r: 22; opacity: 0; } }
-  .pulse { animation: pulse 1.4s ease-out infinite; }
-  .draw { animation: draw 1.6s ease forwards; }
-  @keyframes draw { to { stroke-dashoffset: 0; } }
+  .twobtn { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .btn { min-height: 42px; border-radius: 11px; font-size: 14px; font-weight: 600; display: grid; place-items: center; padding: 6px 10px; text-align: center; line-height: 1.2; }
+  .btn.soft { background: var(--blue-soft); color: var(--blue); }
+  .btn.dark { background: var(--mid); color: #fff; }
+  .btn.primary { background: linear-gradient(100deg, #1F6BFF, #6A5CFF 60%, #4FB4F0); color: #fff; box-shadow: 0 8px 20px rgba(31,107,255,.3); }
+  .go { position: sticky; bottom: 0; margin: 16px 0 0; padding: 14px 0 4px; background: linear-gradient(rgba(246,248,252,0), var(--paper) 35%); z-index: 2; }
+  .go .btn { width: 100%; min-height: 52px; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 0 18px; font-size: 15px; border-radius: 14px; }
+  .go .btn span { font-weight: 500; opacity: .95; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .go .btn.center { justify-content: center; }
+  .note { font-size: 11.5px; color: var(--ink3); text-align: center; margin: 10px 0 0; line-height: 1.45; }
 
-  /* profile */
-  .scorebig { text-align: center; margin-top: 18px; }
-  .scorebig b { font-weight: 300; font-size: 64px; line-height: 1; }
-  .scorebig span { font-size: 20px; color: var(--dim); }
-  .deed { display: flex; align-items: center; gap: 12px; font-size: 15px; margin: 12px 0; }
-  .deed i { width: 20px; height: 20px; border-radius: 50%; background: #fff; color: var(--bg); font-style: normal; font-size: 12px; display: grid; place-items: center; font-weight: 500; flex: none; }
+  /* sheets */
+  .scrim { position: fixed; inset: 0; background: rgba(6,11,36,.35); opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 20; }
+  .scrim.on { opacity: 1; pointer-events: auto; }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; max-height: calc(100% - var(--top) - 16px); overflow-y: auto; background: var(--card); border-radius: 22px 22px 0 0; padding: 10px var(--pad) calc(var(--bot) + 20px); transform: translateY(105%); transition: transform .38s cubic-bezier(.2,.8,.2,1); z-index: 21; scrollbar-width: none; }
+  .sheet::-webkit-scrollbar { display: none; }
+  .sheet.on { transform: none; }
+  .grab { width: 38px; height: 5px; border-radius: 3px; background: #D3D9E3; margin: 0 auto 10px; }
+  .shead { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 34px; }
+  .shead h2 { font-size: 19px; margin: 0; }
+  .x { color: var(--blue); font-weight: 600; font-size: 15px; padding: 6px 0 6px 12px; }
+  .sub { font-size: 13px; color: var(--ink2); margin: 2px 0 12px; line-height: 1.45; }
+  .rankby { font-size: 12px; color: var(--ink3); width: 100%; margin-bottom: 2px; }
+  .goals { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+  .goal { height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid var(--line); font-size: 13px; font-weight: 600; color: var(--ink2); background: var(--card); transition: background .2s, color .2s, border-color .2s; }
+  .goal.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .opt { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 0; border-bottom: 1px solid var(--line); background: var(--card); position: relative; }
+  .opt:last-child { border-bottom: 0; }
+  .opt .thumb, .opt .ph { width: 48px; height: 48px; border-radius: 10px; font-size: 8.5px; }
+  .opt .tx { flex: 1; min-width: 0; }
+  .opt .tx b { display: block; font-size: 14.5px; font-weight: 600; }
+  .opt .tx small { display: block; font-size: 12.5px; color: var(--ink2); }
+  .opt .tx em { display: block; font-style: normal; font-size: 12px; color: var(--blue); font-weight: 600; margin-top: 2px; }
+  .opt .num { font-size: 20px; font-weight: 700; min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+  .opt.top .num { color: var(--blue); }
+  .opt.unv { cursor: default; }
+  .opt.unv .num { font-size: 12px; font-weight: 500; color: var(--ink3); width: 66px; line-height: 1.25; }
+  .opt.unv .tx b, .opt.unv .tx small { color: var(--ink3); }
 
-  /* demo overlay */
-  .tap { position: fixed; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: rgba(255,255,255,.35); border: 2px solid #fff; pointer-events: none; z-index: 50; opacity: 0; transition: left .5s ease, top .5s ease, opacity .2s; }
-  .tap.down { animation: tapk .35s ease; }
-  @keyframes tapk { 50% { transform: scale(.7); background: rgba(255,255,255,.6); } }
-  .cap { position: fixed; left: 50%; bottom: calc(26px + env(safe-area-inset-bottom)); transform: translate(-50%, 12px); max-width: calc(100% - 40px); width: max-content;
-    background: rgba(255,255,255,.96); color: var(--bg); border-radius: 22px; padding: 10px 18px; font-size: 15px; font-weight: 500; line-height: 1.3; text-align: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,.45); opacity: 0; transition: opacity .35s, transform .35s; z-index: 45; pointer-events: none; }
-  .cap.on { opacity: 1; transform: translate(-50%, 0); }
-  .cap b { color: #1F6BFF; font-weight: 500; margin-right: 6px; }
-  .outro { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(3,7,43,.94); opacity: 0; pointer-events: none; transition: opacity .6s; z-index: 40; text-align: center; }
+  /* proof sheet: midnight */
+  .sheet.dark { background: radial-gradient(120% 70% at 20% 0%, #16245E 0%, #0A1236 45%, var(--mid) 100%); color: #fff; }
+  .sheet.dark .grab { background: rgba(255,255,255,.3); }
+  .sheet.dark .x { color: #A9C3FF; }
+  .phero { display: flex; gap: 16px; align-items: center; margin: 2px 0 14px; }
+  .phero .sring { width: 84px; height: 84px; }
+  .phero .sring b { font-size: 26px; color: #fff; }
+  .kick { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #8FD8FF; font-weight: 700; }
+  .phero > div:last-child { min-width: 0; }
+  .phero h3 { font-size: 19px; margin: 3px 0 2px; line-height: 1.2; }
+  .phero p { margin: 0; font-size: 13px; color: rgba(255,255,255,.78); }
+  .lab { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.72); font-weight: 700; margin: 16px 0 4px; }
+  .why { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.1); font-size: 13.5px; }
+  .why span:first-child { color: rgba(255,255,255,.72); flex: none; }
+  .why span:last-child { text-align: right; }
+  .dimrow { display: grid; grid-template-columns: 84px 1fr 28px; align-items: center; gap: 10px; padding: 5px 0; font-size: 13.5px; }
+  .dimrow span:first-child { color: rgba(255,255,255,.78); }
+  .dimrow .bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+  .dimrow .bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, #1F6BFF, #7B5CFF); transition: width .9s cubic-bezier(.2,.8,.2,1); }
+  .dimrow b { text-align: right; font-variant-numeric: tabular-nums; }
+  .chk { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 13.5px; opacity: .3; transition: opacity .35s; }
+  .chk.ok { opacity: 1; }
+  .chk i { width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,.15); display: grid; place-items: center; flex: none; transition: background .3s; }
+  .chk.ok i { background: var(--blue); }
+  .chk i svg { width: 12px; height: 12px; stroke: #fff; fill: none; stroke-width: 3; opacity: 0; transition: opacity .3s; }
+  .chk.ok i svg { opacity: 1; }
+  .chk b { font-weight: 600; flex: 1; }
+  .chk small { color: rgba(255,255,255,.75); font-size: 12px; text-align: right; }
+  .pnote { font-size: 12.5px; color: rgba(255,255,255,.78); margin: 10px 0 0; line-height: 1.5; }
+  .sim { display: inline-block; margin-top: 12px; font-size: 11.5px; color: rgba(255,255,255,.88); border: 1px solid rgba(255,255,255,.3); border-radius: 10px; padding: 3px 9px; }
+
+  /* shops map */
+  #map { height: 290px; border-radius: 14px; overflow: hidden; margin: 6px 0 10px; background: #E8ECF2; z-index: 0; }
+  .leaflet-container { font-family: inherit; }
+  .leaflet-tooltip.tag { background: var(--card); border: 0; border-radius: 9px; box-shadow: 0 2px 10px rgba(11,18,32,.18); color: var(--ink); font: 600 12px/1.25 "DM Sans", sans-serif; padding: 4px 8px; }
+  .leaflet-tooltip.tag small { display: block; font-weight: 500; color: var(--ink2); font-size: 11px; }
+  .leaflet-tooltip.tag::before { display: none; }
+  .leaflet-tooltip.tag.cur { background: var(--blue); color: #fff; }
+  .leaflet-tooltip.tag.cur small { color: rgba(255,255,255,.88); }
+  .leaflet-tooltip.tag.me { background: var(--ink); color: #fff; }
+  .srow { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .srow .tx { flex: 1; min-width: 0; }
+  .srow b { display: block; font-size: 15px; }
+  .srow small { display: block; font-size: 12.5px; color: var(--ink2); }
+  .srow .cnt { text-align: right; font-size: 13.5px; font-weight: 700; color: var(--blue); white-space: nowrap; }
+  .srow .cnt small { color: var(--ink3); font-weight: 500; }
+  .srow .you { color: var(--blue); font-weight: 600; font-size: 12.5px; }
+  .srow.full .cnt { color: var(--violet); }
+
+  /* in the shop */
+  .next { display: flex; align-items: center; gap: 6px; font-size: 14px; margin: 10px 0 2px; flex-wrap: wrap; }
+  .next svg { width: 14px; height: 14px; fill: var(--blue); flex: none; }
+  .next b { font-weight: 700; }
+  .gtitle { font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; color: var(--ink3); margin: 16px 0 2px; }
+  .ihead, .tick, .card .btn, .elsewhere { scroll-margin: 70px 0 100px; }
+  .tick { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 0; border-bottom: 1px solid var(--line); transition: opacity .35s; }
+  .tick .c { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--blue); display: grid; place-items: center; flex: none; transition: background .2s; }
+  .tick .c svg { width: 13px; height: 13px; stroke: #fff; fill: none; stroke-width: 3; opacity: 0; }
+  .tick.on .c { background: var(--blue); }
+  .tick.on .c svg { opacity: 1; }
+  .tick.on { opacity: .45; }
+  .tick.on b { text-decoration: line-through; }
+  .tick .tx { flex: 1; min-width: 0; }
+  .tick b { display: block; font-size: 16px; font-weight: 600; }
+  .tick small { display: block; font-size: 12.5px; color: var(--ink2); }
+  .tick.free .c { border-color: #B5BDCA; }
+  .tick.free.on .c { background: #B5BDCA; }
+
+  /* done */
+  .big { display: grid; place-items: center; margin: 12px 0 4px; text-align: center; }
+  .big .sring { width: 160px; height: 160px; }
+  .big .sring b { font-size: 46px; }
+  .big p { margin: 8px 0 0; font-weight: 600; }
+  .gain { display: table; margin: 8px auto 14px; background: var(--blue-soft); color: var(--blue); font-weight: 600; font-size: 13px; padding: 5px 12px; border-radius: 14px; }
+  .three { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--card); border-radius: 14px; padding: 12px 4px; text-align: center; margin-bottom: 10px; }
+  .three b { display: block; font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .three small { font-size: 11.5px; color: var(--ink3); }
+  .drow { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .drow .tx { flex: 1; min-width: 0; }
+  .drow small { display: block; font-size: 12px; color: var(--ink2); }
+  .drow .yc { font-size: 12px; color: var(--ink3); }
+  .drow .ok { width: 18px; color: var(--blue); font-weight: 700; }
+  .drow .ok.grey { color: #A9B2C1; }
+
+  /* demo */
+  .tap { position: fixed; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: rgba(31,107,255,.22); border: 2px solid rgba(31,107,255,.75); pointer-events: none; opacity: 0; transition: left .45s cubic-bezier(.3,.7,.2,1), top .45s cubic-bezier(.3,.7,.2,1), opacity .25s; z-index: 50; }
+  .tap.down { animation: tapdown .35s ease; }
+  @keyframes tapdown { 50% { transform: scale(.72); background: rgba(31,107,255,.42); } }
+  .outro { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 45%, #16245E, var(--mid) 70%); color: #fff; z-index: 60; opacity: 0; pointer-events: none; transition: opacity .6s; text-align: center; }
   .outro.on { opacity: 1; }
-  .outro div { font-size: 24px; letter-spacing: .3em; text-transform: uppercase; line-height: 1.5; padding-left: .3em; }
+  .outro .wm { font-size: 58px; }
+  .outro p { font-size: 18px; color: rgba(255,255,255,.82); margin: 10px 0 0; }
+  @media (max-width: 340px) { :root { --pad: 16px; } h1 { font-size: 27px; } .twobtn { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 
-<!-- HOME -->
-<section class="screen on" id="home">
-  <div class="bar">
-    <button class="shopbtn" data-go="map" aria-label="Choose your shop"><svg viewBox="0 0 24 24" width="14" height="14" stroke="#fff" fill="none" stroke-width="1.6"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg><b class="shopname"></b></button>
-    <button class="avatar" data-go="profile" aria-label="Your profile">P</button>
-  </div>
-  <div class="logo"><div class="ring"></div></div>
-  <div class="word">POINT</div>
-  <div class="search" data-search>
-    <div class="box"><svg viewBox="0 0 24 24" width="18" height="18" stroke="#fff" fill="none" stroke-width="1.6"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg><input id="q" placeholder="What do you need? e.g. pasta" autocomplete="off" enterkeyhint="search" aria-label="Search a product"></div>
-    <div class="sugg" role="listbox"></div>
-  </div>
-  <div class="chips" id="homeChips"></div>
-  <div class="label" style="margin-top:30px">Rank the shelf by your goal</div>
-  <div id="goals"></div>
+<!-- 1 · Lists -->
+<section class="screen on" id="lists">
+  <div class="nav" style="justify-content:flex-end"><button class="pill" data-shopbtn aria-label="Change shop"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg><span class="shopname"></span><svg class="car" viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"/></svg></button></div>
+  <h1>Lists</h1>
+  <label class="search"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 20 20"/></svg><input id="lq" placeholder="Search" autocomplete="off" aria-label="Search lists"></label>
+  <div id="listGroups"></div>
+  <p class="hint">Tap ✎ below to write a new list,<br>the way you always do.</p>
+  <div class="toolbar"><span class="wm" style="font-size:15px;color:var(--ink)">P<i></i>int</span><span id="nLists"></span><button id="compose" aria-label="New list"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button></div>
 </section>
 
-<!-- LIST -->
-<section class="screen" id="list">
-  <div class="bar">
-    <button class="icon" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
-    <button class="shopbtn" data-go="map" aria-label="Change shop"><svg viewBox="0 0 24 24" width="14" height="14" stroke="#fff" fill="none" stroke-width="1.6"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg><b class="shopname"></b></button>
-  </div>
-  <div class="display">Your<br>list</div>
-  <div class="search" data-search style="margin-top:18px">
-    <div class="box"><svg viewBox="0 0 24 24" width="18" height="18" stroke="#fff" fill="none" stroke-width="1.6"><path d="M12 5v14M5 12h14"/></svg><input id="add" placeholder="Add a product, e.g. coffee" autocomplete="off" enterkeyhint="done" aria-label="Add a product"></div>
-    <div class="sugg" role="listbox"></div>
-  </div>
-  <div class="label">Rank by</div>
-  <div class="chips" id="gchips" style="margin-top:0"></div>
-  <div style="height:22px"></div>
-  <div id="groups"></div>
-  <p class="note"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px"></span>Point’s pick: the best verified product on this shelf for your goal. Scores are out of 100.</p>
+<!-- 2 · Note (write, then done) -->
+<section class="screen" id="note">
+  <div class="nav"><button class="navbtn" data-back><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Lists</button><button class="navbtn" id="modeBtn"></button></div>
+  <div id="noteBody"></div>
 </section>
 
-<!-- PRODUCT -->
-<section class="screen" id="product">
-  <div class="bar"><button class="icon" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="ctx" id="pCtx"></span></div>
-  <div class="phead"><div><div class="pname" id="pName"></div><div class="porigin" id="pOrigin"></div></div><img class="pimg" id="pImg" alt=""><div class="ph0" id="pPh">NO<br>PHOTO</div></div>
-  <div class="pscore"><b id="pScore"></b><span id="pOf">/ 100</span></div>
-  <div class="pscore-l" id="pScoreL"></div>
-  <div class="prank" id="pRank"></div>
-  <div class="slash"></div>
-  <div id="pBody"></div>
-  <div class="actions">
-    <button class="act solid" data-go="floor" id="findBtn">Find it in the shop</button>
-    <button class="act" data-go="map">Other shops nearby</button>
-  </div>
-</section>
-
-<!-- MAP -->
-<section class="screen" id="map-s">
-  <div class="bar"><button class="icon" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="ctx" id="mapCtx"></span></div>
-  <div class="display">Shops<br>near you</div>
+<!-- 3 · Shops nearby -->
+<section class="screen" id="shops">
+  <div class="nav"><button class="navbtn" data-back><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span id="shopsBack">Back</span></button></div>
+  <h1 style="font-size:26px;margin-bottom:4px">Shops near you</h1>
+  <p class="sub" id="shopsSub"></p>
   <div id="map"></div>
-  <div class="legend" id="legend"></div>
-  <div id="shops"></div>
+  <div id="shopRows"></div>
+  <p class="note">Real Migros supermarkets in St. Gallen. Stock and scores are illustrative. Point is not affiliated with Migros.</p>
 </section>
 
-<!-- FLOOR PLAN -->
-<section class="screen" id="floor">
-  <div class="bar"><button class="icon" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="ctx" id="floorCtx"></span></div>
-  <div class="display">In the<br>shop</div>
-  <div class="plan" id="plan"></div>
-  <div class="here" id="aisle"></div>
-  <div class="shelfline" id="shelf"></div>
-  <div class="actions" id="floorActs"></div>
+<!-- 4 · In the shop -->
+<section class="screen" id="shop">
+  <div class="nav"><button class="navbtn" data-back><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span id="shopBack"></span></button><button class="navbtn" id="endBtn">End</button></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h1 style="margin-bottom:6px">In the shop</h1><span class="chip" id="tickCount"></span></div>
+  <div class="plan" id="routePlan"></div>
+  <div class="next" id="nextUp"></div>
+  <div id="route"></div>
 </section>
 
-<!-- PROFILE -->
-<section class="screen" id="profile">
-  <div class="bar"><button class="icon" data-back aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span class="ctx">Guest</span></div>
-  <div class="display">Your<br>month</div>
-  <div class="scorebig"><b>82</b><span> / 100</span></div>
-  <div class="pscore-l" style="text-align:center;margin-top:6px">Your Point score this month</div>
-  <div class="meter" style="margin-top:18px"><i style="width:82%"></i></div>
-  <div class="meter-l"><span>November</span><span>up 6 from October</span></div>
-  <div class="slash"></div>
-  <div class="label" style="margin-top:0">What you did</div>
-  <div class="deed"><i>✓</i>Chose Point’s pick 14 times</div>
-  <div class="deed"><i>✓</i>Saved about 3.1 kg CO₂</div>
-  <div class="deed"><i>✓</i>Avoided 22 plastic trays</div>
-  <div class="deed"><i>✓</i>Invited a friend</div>
-  <p class="note">Illustrative numbers for the prototype.</p>
+<!-- 5 · Shop done -->
+<section class="screen" id="done">
+  <div class="nav" style="justify-content:flex-end"><button class="navbtn" id="closeDone">Close</button></div>
+  <h1 style="margin-bottom:0">Shop done</h1>
+  <div class="date" style="text-align:left" id="doneWhen"></div>
+  <div class="big"><div class="sring" id="bigRing"></div><p>Your basket’s score</p></div>
+  <span class="gain" id="gain"></span>
+  <div class="three" id="three"></div>
+  <div id="doneRows"></div>
+  <div class="go"><button class="btn primary center" id="again">Use again next week</button></div>
+  <p class="note">Illustrative data, not measured.</p>
 </section>
+
+<!-- Sheets -->
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="others" role="dialog" aria-label="Other products on this shelf">
+  <div class="grab"></div>
+  <div class="shead"><h2 id="oTitle"></h2><button class="x" data-close>Done</button></div>
+  <p class="sub" id="oSub"></p>
+  <div class="goals" id="oGoals"></div>
+  <div id="oList"></div>
+</div>
+<div class="sheet dark" id="proof" role="dialog" aria-label="Why this product">
+  <div class="grab"></div>
+  <div class="shead"><span></span><button class="x" data-close>Close</button></div>
+  <div id="proofBody"></div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-// ===================== Data (illustrative) =====================
-const GOALS = [
-  { k: "plastic", t: "Less plastic", p: 78 },
-  { k: "co2", t: "Less CO₂", p: 55 },
-  { k: "water", t: "Less water", p: 40 },
-  { k: "km0", t: "Km 0", p: 63 },
-  { k: "all", t: "All together", p: 61 },
-];
-const DIMS = { co2: "CO₂", water: "Water", land: "Land", plastic: "Plastic", energy: "Energy", km0: "Km 0" };
+// ===================== Data (illustrative, except the shop addresses) =====================
+// Real Migros supermarkets in St. Gallen (filialen.migros.ch, checked 6 Nov 2026).
 const SHOPS = [
-  { id: "mp", n: "Supermarket Marktplatz", s: "Marktplatz", a: "Marktplatz, St. Gallen", ll: [47.4257, 9.3768], dir: "right" },
-  { id: "bh", n: "Supermarket Bahnhof", s: "Bahnhof", a: "Bahnhofplatz, St. Gallen", ll: [47.4228, 9.3697], dir: "bottom" },
-  { id: "rb", n: "Supermarket Rosenberg", s: "Rosenberg", a: "Dufourstrasse, St. Gallen", ll: [47.4306, 9.3722], dir: "top" },
-  { id: "nd", n: "Supermarket Neudorf", s: "Neudorf", a: "Rorschacher Strasse, St. Gallen", ll: [47.4352, 9.4035], dir: "top" },
+  { id: "nm", n: "Migros Neumarkt", a: "St. Leonhard-Strasse 35", ll: [47.422105, 9.370668], dir: "bottom" },
+  { id: "sf", n: "Migros St. Fiden", a: "Bachstrasse 29", ll: [47.43581, 9.391612], dir: "top" },
+  { id: "si", n: "Migros Silberturm", a: "Rorschacher Strasse 150", ll: [47.430898, 9.39492], dir: "bottom" },
+  { id: "nd", n: "Migros Neudorf", a: "Rorschacher Strasse 249", ll: [47.437184, 9.405068], dir: "right" },
+  { id: "la", n: "Migros Lachen", a: "Ulmenstrasse 11", ll: [47.420506, 9.353967], dir: "top" },
 ];
-const ME = [47.4243, 9.3739];
-const ALL = ["mp", "bh", "rb", "nd"];
-const AISLES = ["Fruit & veg", "Bakery", "Pasta & rice", "Coffee", "Dairy", "Drinks"];
+const ALL = SHOPS.map((s) => s.id);
+const ME = [47.4253, 9.3765]; // Marktplatz, St. Gallen
+// Sections of the shop plan (layout illustrative). The walking loop passes them in this order.
+const SECT = {
+  fruit: { t: "Fruit & veg wall", stop: [256, 96] },
+  dairy: { t: "Dairy wall", stop: [150, 40] },
+  coffee: { t: "Coffee corner", stop: [40, 54] },
+  stand1: { t: "Stand 1", stop: [122, 86] },
+  stand2: { t: "Stand 2", stop: [182, 86] },
+};
+const ORDER = ["fruit", "dairy", "coffee", "stand1", "stand2"];
+const LOOP = [[218, 176], [256, 160], [256, 40], [40, 40], [40, 86], [232, 86], [232, 128], [92, 128], [92, 176]];
+const DIMS = [["energy", "Energy"], ["water", "Water"], ["pack", "Packaging"], ["transport", "Transport"]];
+const GOALS = [["all", "Point score"], ["transport", "Km 0"], ["pack", "Less packaging"], ["water", "Less water"], ["energy", "Clean energy"]];
+// Point score = average of the four dimensions (open formula). Brands and numbers are illustrative.
 const DATA = {
-  pasta: { aisle: 3, items: [
-    { n: "Spaghetti", img: "pasta-a.jpg", d: "Durum wheat, Italy · 500 g · paper box", pr: 2.20, all: 86.5, s: { co2: 84, water: 79, land: 82, plastic: 95, energy: 87, km0: 72 }, shops: ["mp", "bh", "rb"], shelf: "Shelf B, eye level" },
-    { n: "Tagliatelle", img: "pasta-c.jpg", d: "Swiss spelt · 250 g · plastic tray", pr: 3.90, all: 81.8, s: { co2: 80, water: 85, land: 70, plastic: 58, energy: 82, km0: 94 }, shops: ["mp", "nd"], shelf: "Shelf A, top" },
-    { n: "Penne", img: "pasta-b.png", d: "Durum wheat, Canada · 500 g · plastic bag", pr: 1.60, all: 77.4, s: { co2: 76, water: 81, land: 78, plastic: 55, energy: 77, km0: 48 }, shops: ALL, shelf: "Shelf C, bottom" },
-    { n: "Egg pasta", img: null, d: "Origin not disclosed · 500 g", pr: 2.80, all: null, shops: ALL, shelf: "Shelf C, bottom" },
+  pasta: { sect: "stand1", spot: "left side", items: [
+    { b: "Campo Alto", n: "Spaghetti integrali bio", img: "pasta-a.jpg", pk: "500 g", pr: 2.95, d: { energy: 92, water: 81, pack: 88, transport: 74 }, why: [["Energy", "92% renewable, mostly hydro"], ["Transport", "140 km, by rail"], ["Packaging", "paper, recyclable"]], h: "eye level", shops: ["nm", "sf", "nd"] },
+    { b: "Pastificio Lago", n: "Penne rigate", img: "pasta-b.png", pk: "500 g", pr: 1.95, d: { energy: 85, water: 82, pack: 70, transport: 79 }, why: [["Water", "rain-fed durum wheat"], ["Energy", "85% renewable"], ["Packaging", "plastic bag"]], h: "bottom shelf", shops: ALL },
+    { b: "Alpenkorn", n: "Tagliatelle, Swiss spelt", img: "pasta-c.jpg", pk: "250 g", pr: 3.90, d: { energy: 80, water: 78, pack: 52, transport: 98 }, why: [["Transport", "grown and made in eastern Switzerland"], ["Water", "no irrigation"], ["Packaging", "plastic tray"]], h: "top shelf", shops: ["nm", "la"] },
+    { b: "Nonna Rosa", n: "Egg pasta", img: null, pk: "500 g", pr: 2.80, d: null, h: "bottom shelf", shops: ALL },
   ]},
-  oranges: { aisle: 1, items: [
-    { n: "Blood oranges", img: "oranges-a.jpg", d: "Sicily, Italy · 1 kg · loose", pr: 3.95, all: 79.6, s: { co2: 80, water: 66, land: 82, plastic: 96, energy: 84, km0: 74 }, shops: ["mp", "bh"], shelf: "Crate 4" },
-    { n: "Oranges", img: "oranges-b.jpg", d: "Valencia, Spain · 2 kg · net", pr: 4.50, all: 71.2, s: { co2: 74, water: 52, land: 80, plastic: 70, energy: 79, km0: 58 }, shops: ALL, shelf: "Crate 5" },
-    { n: "Navel oranges", img: "oranges-c.jpg", d: "South Africa · 1.5 kg · plastic bag", pr: 3.20, all: 55.8, s: { co2: 49, water: 58, land: 78, plastic: 55, energy: 62, km0: 10 }, shops: ["rb", "nd"], shelf: "Crate 6" },
+  oranges: { sect: "fruit", spot: "crates", items: [
+    { b: "Sicilia Viva", n: "Blood oranges, organic", img: "oranges-a.jpg", pk: "1 kg, loose", pr: 3.95, d: { energy: 88, water: 84, pack: 98, transport: 78 }, why: [["Packaging", "loose, no plastic"], ["Water", "rain-fed groves"], ["Transport", "1,300 km, by rail"]], h: "crate 4", shops: ["nm", "sf", "si"] },
+    { b: "Huerta Sol", n: "Oranges, Valencia", img: "oranges-b.jpg", pk: "2 kg, net", pr: 4.50, d: { energy: 76, water: 52, pack: 70, transport: 72 }, why: [["Transport", "1,500 km, by truck"], ["Water", "irrigated groves"], ["Packaging", "plastic net"]], h: "crate 5", shops: ALL },
+    { b: "Cape Grove", n: "Navel oranges", img: "oranges-c.jpg", pk: "1.5 kg, bag", pr: 3.20, d: { energy: 62, water: 58, pack: 55, transport: 22 }, why: [["Transport", "9,000 km, by ship"], ["Packaging", "plastic bag"], ["Energy", "cold storage"]], h: "crate 6", shops: ["nd", "la", "nm"] },
   ]},
-  tomatoes: { aisle: 1, items: [
-    { n: "Tomatoes", img: "tomatoes-a.jpg", d: "Field-grown, St. Galler Rheintal · 1 kg · loose", pr: 4.20, all: 88.2, s: { co2: 91, water: 74, land: 85, plastic: 98, energy: 90, km0: 97 }, shops: ["mp", "bh", "nd"], shelf: "Crate 1, local produce" },
-    { n: "Roma tomatoes", img: "tomatoes-c.jpg", d: "Spain · 500 g · plastic tray", pr: 2.95, all: 66.7, s: { co2: 70, water: 39, land: 76, plastic: 42, energy: 78, km0: 40 }, shops: ALL, shelf: "Crate 2" },
-    { n: "Cherry tomatoes", img: "tomatoes-b.jpg", d: "Heated greenhouse, Netherlands · 250 g · tray", pr: 3.50, all: 61.0, s: { co2: 52, water: 88, land: 92, plastic: 40, energy: 41, km0: 45 }, shops: ["rb", "bh"], shelf: "Crate 3" },
-    { n: "San Marzano", img: "tomatoes-d.jpg", d: "Origin not disclosed · 500 g", pr: 3.80, all: null, shops: ["mp", "rb"], shelf: "Crate 3" },
+  apples: { sect: "fruit", spot: "crates", items: [
+    { b: "Hof Seeblick", n: "Gala apples, Thurgau", img: "apples-a.jpg", pk: "1 kg, loose", pr: 3.40, d: { energy: 90, water: 88, pack: 99, transport: 96 }, why: [["Transport", "45 km from the farm"], ["Packaging", "loose, no plastic"], ["Energy", "solar-powered cold store"]], h: "crate 7", shops: ALL },
+    { b: "Kiwi Orchard", n: "Royal Gala, New Zealand", img: "apples-b.jpg", pk: "1 kg, bag", pr: 4.95, d: { energy: 70, water: 80, pack: 60, transport: 12 }, why: [["Transport", "18,000 km, by ship"], ["Packaging", "plastic bag"], ["Water", "rain-fed"]], h: "crate 8", shops: ALL },
   ]},
-  milk: { aisle: 5, items: [
-    { n: "Oat drink", img: "milk-b.jpg", d: "Sweden · 1 l · carton", pr: 2.95, all: 84.9, s: { co2: 90, water: 89, land: 87, plastic: 76, energy: 81, km0: 62 }, shops: ["mp", "rb", "bh"], shelf: "Fridge 2, middle" },
-    { n: "Whole milk", img: "milk-a.jpg", d: "Emmental, Switzerland · 1 l · glass", pr: 1.65, all: 72.3, s: { co2: 61, water: 66, land: 58, plastic: 90, energy: 74, km0: 92 }, shops: ALL, shelf: "Fridge 1, top" },
+  milk: { sect: "dairy", spot: "fridge 1", items: [
+    { b: "Alpe Säntis", n: "Whole milk, glass bottle", img: "milk-a.jpg", pk: "1 l", pr: 1.85, d: { energy: 74, water: 66, pack: 90, transport: 92 }, why: [["Transport", "30 km, Appenzell farms"], ["Packaging", "returnable glass"], ["Energy", "74% renewable"]], h: "top shelf", shops: ALL },
+    { b: "Nordhavre", n: "Oat drink", img: "milk-b.jpg", pk: "1 l, carton", pr: 2.95, d: { energy: 81, water: 89, pack: 76, transport: 40 }, why: [["Water", "very low water use"], ["Transport", "1,700 km, from Sweden"], ["Packaging", "carton"]], h: "middle shelf", shops: ALL },
   ]},
-  coffee: { aisle: 4, items: [
-    { n: "Coffee beans", img: "coffee-a.jpg", d: "Peru, shade-grown · 500 g · paper bag", pr: 8.90, all: 69.8, s: { co2: 64, water: 61, land: 79, plastic: 70, energy: 72, km0: 30 }, shops: ["mp", "bh"], shelf: "Shelf A, eye level" },
-    { n: "Instant coffee", img: "coffee-b.jpg", d: "Brazil · 200 g · glass jar", pr: 6.50, all: 58.2, s: { co2: 52, water: 55, land: 60, plastic: 68, energy: 44, km0: 28 }, shops: ALL, shelf: "Shelf C" },
-    { n: "Ground coffee", img: "coffee-c.jpg", d: "Origin not disclosed · 500 g", pr: 5.95, all: null, shops: ALL, shelf: "Shelf B" },
+  coffee: { sect: "coffee", spot: "shelf A", items: [
+    { b: "Altura", n: "Fair-trade beans, medium", img: "coffee-a.jpg", pk: "500 g", pr: 8.90, d: { energy: 78, water: 66, pack: 80, transport: 48 }, why: [["Energy", "solar roasting"], ["Packaging", "paper bag, recyclable"], ["Transport", "by ship, from Peru"]], h: "eye level", shops: ["nm", "sf", "si"] },
+    { b: "Rapido", n: "Instant coffee", img: "coffee-b.jpg", pk: "200 g, jar", pr: 6.50, d: { energy: 44, water: 55, pack: 68, transport: 40 }, why: [["Energy", "freeze-drying uses a lot"], ["Packaging", "glass jar"], ["Transport", "by ship, from Brazil"]], h: "bottom shelf", shops: ALL },
+    { b: "Casa Bruno", n: "Ground coffee", img: "coffee-c.jpg", pk: "500 g", pr: 5.95, d: null, h: "top shelf", shops: ALL },
   ]},
-  apples: { aisle: 1, items: [
-    { n: "Gala apples", img: "apples-a.jpg", d: "Thurgau, Switzerland · 1 kg · loose", pr: 3.40, all: 90.4, s: { co2: 92, water: 86, land: 88, plastic: 99, energy: 87, km0: 96 }, shops: ALL, shelf: "Crate 7" },
-    { n: "Pink Lady apples", img: "apples-b.jpg", d: "New Zealand · 1 kg · plastic bag", pr: 4.95, all: 64.1, s: { co2: 55, water: 80, land: 84, plastic: 60, energy: 70, km0: 12 }, shops: ["rb", "nd"], shelf: "Crate 8" },
+  tomatoes: { sect: "fruit", spot: "crates", items: [
+    { b: "Rheintal Gemüse", n: "Field tomatoes", img: "tomatoes-a.jpg", pk: "1 kg, loose", pr: 4.20, d: { energy: 90, water: 74, pack: 98, transport: 97 }, why: [["Transport", "50 km, St. Galler Rheintal"], ["Packaging", "loose, no plastic"], ["Energy", "field-grown, no heating"]], h: "crate 1", shops: ["nm", "sf", "nd"] },
+    { b: "Vega Roja", n: "Roma tomatoes", img: "tomatoes-c.jpg", pk: "500 g, tray", pr: 2.95, d: { energy: 78, water: 39, pack: 42, transport: 40 }, why: [["Water", "irrigated, dry region"], ["Packaging", "plastic tray"], ["Transport", "1,400 km, by truck"]], h: "crate 2", shops: ALL },
+    { b: "Glasland", n: "Cherry tomatoes", img: "tomatoes-b.jpg", pk: "250 g, tray", pr: 3.50, d: { energy: 41, water: 88, pack: 40, transport: 45 }, why: [["Energy", "heated greenhouse"], ["Water", "closed water loop"], ["Packaging", "plastic tray"]], h: "crate 3", shops: ["si", "la", "nm"] },
+  ]},
+  "olive oil": { sect: "stand2", spot: "oils", items: [
+    { b: "Olio Sereno", n: "Extra virgin, organic", img: null, pk: "500 ml, glass", pr: 9.80, d: { energy: 80, water: 62, pack: 85, transport: 60 }, why: [["Packaging", "glass, recyclable"], ["Energy", "solar-powered mill"], ["Transport", "1,100 km, by rail"]], h: "eye level", shops: ["sf", "si"] },
+    { b: "Oliva d'Oro", n: "Extra virgin olive oil", img: null, pk: "1 l, plastic", pr: 7.50, d: null, h: "bottom shelf", shops: ALL },
   ]},
 };
 const SYN = {
-  pasta: ["pasta", "spaghetti", "penne", "tagliatelle", "noodles", "nudeln", "teigwaren", "pates"],
-  oranges: ["oranges", "orange", "orangen", "arance", "blood orange", "navel"],
-  tomatoes: ["tomatoes", "tomato", "tomaten", "tomate", "pomodori", "tomates", "cherry"],
-  milk: ["milk", "milch", "latte", "lait", "oat drink", "hafermilch", "oat"],
-  coffee: ["coffee", "kaffee", "caffe", "cafe", "espresso", "beans"],
-  apples: ["apples", "apple", "apfel", "aepfel", "mele", "pommes", "gala"],
+  pasta: ["pasta", "spaghetti", "penne", "tagliatelle", "noodles", "nudeln", "teigwaren", "pates", "fusilli"],
+  oranges: ["oranges", "orange", "orangen", "arance", "blood oranges"],
+  apples: ["apples", "apple", "apfel", "aepfel", "mele", "pommes"],
+  milk: ["milk", "milch", "latte", "lait", "oat milk", "oat drink"],
+  coffee: ["coffee", "kaffee", "caffe", "cafe", "espresso", "coffee beans"],
+  tomatoes: ["tomatoes", "tomato", "tomaten", "pomodori", "tomates"],
+  "olive oil": ["olive oil", "oil", "olivenoel", "olivenol", "olio", "huile d'olive"],
 };
+const USUAL = 74; // illustrative: average score of this user's usual basket
 
 // ===================== State and helpers =====================
-const st = { goal: "plastic", list: ["pasta", "oranges", "tomatoes", "milk"], open: null, prod: null, cat: null, shop: "mp", mapMode: "browse" };
-const hist = ["home"];
 const $ = (id) => document.getElementById(id);
-const goalT = (k = st.goal) => GOALS.find((g) => g.k === k).t;
-const sc = (p) => (p.all === null ? null : st.goal === "all" ? p.all : p.s[st.goal]);
-const fmt = (v) => (v === null ? "–" : Number.isInteger(v) ? String(v) : v.toFixed(1));
-const shelf = (k) => DATA[k].items.filter((p) => p.shops.includes(st.shop));
-const ranked = (k) => shelf(k).sort((a, b) => (sc(b) ?? -1) - (sc(a) ?? -1));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const norm = (x) => x.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
+const score = (p, g = "all") => (!p.d ? null : g === "all" ? Math.round(DIMS.reduce((s, [k]) => s + p.d[k], 0) / DIMS.length) : p.d[g]);
 const shop = (id = st.shop) => SHOPS.find((s) => s.id === id);
-const catOf = (p) => Object.keys(DATA).find((k) => DATA[k].items.includes(p));
-const norm = (x) => x.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ä/g, "ae").trim();
-function hash(s) { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h.toString(16).padStart(8, "0"); }
-function countUp(el, to, ms = 900) {
-  const t0 = performance.now();
-  const step = (t) => { const k = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 3); el.textContent = k < 1 ? Math.round(to * e) : fmt(to); if (k < 1) requestAnimationFrame(step); };
-  requestAnimationFrame(step);
+const chf = (v) => "CHF " + v.toFixed(2);
+const today = new Date();
+const st = {
+  shop: "nm", cur: null, mode: "done", open: null, goal: "all", ticked: new Set(), started: 0, animRoute: false,
+  lists: [
+    { id: "w", t: "Weekly shop", w: ["pasta", "oranges", "apples", "milk", "coffee", "olive oil"], when: "Today" },
+    { id: "f", t: "Friday dinner", w: ["pasta", "tomatoes", "olive oil"], when: "Today" },
+    { id: "l", t: "Last week", w: ["apples", "milk", "tomatoes", "coffee"], when: "30.10.", shopped: true, prev: true },
+  ],
+  pick: {}, // "listId:category" -> chosen product name
+};
+const hist = ["lists"];
+let playing = false;
+
+function catOf(word) {
+  const w = norm(word); if (!w) return null;
+  for (const [k, list] of Object.entries(SYN)) if (list.some((s) => norm(s) === w)) return k;
+  if (w.length >= 4) for (const [k, list] of Object.entries(SYN)) if (list.some((s) => norm(s).startsWith(w))) return k;
+  return null;
 }
-function setShopNames() { document.querySelectorAll(".shopname").forEach((b) => (b.textContent = shop().s)); }
+const onShelf = (cat, sid = st.shop) => DATA[cat].items.filter((p) => p.shops.includes(sid));
+const ranked = (cat, g = "all", sid = st.shop) => onShelf(cat, sid).slice().sort((a, b) => (score(b, g) ?? -1) - (score(a, g) ?? -1));
+// What Point answers for one word in one shop.
+function resolve(word, listId, sid = st.shop) {
+  const cat = catOf(word);
+  if (!cat) return { state: "unknown", word };
+  const shelf = ranked(cat, "all", sid).filter((p) => p.d);
+  const key = listId + ":" + cat;
+  const chosen = listId && st.pick[key] ? shelf.find((p) => p.n === st.pick[key]) : null;
+  const pick = chosen || shelf[0];
+  if (!pick) {
+    const elsewhere = SHOPS.filter((s) => s.id !== sid && DATA[cat].items.some((p) => p.d && p.shops.includes(s.id))).sort((a, b) => km(ME, a.ll) - km(ME, b.ll));
+    return { state: "none", word, cat, elsewhere };
+  }
+  return { state: "ready", word, cat, pick, mine: !!chosen, rank: shelf.indexOf(pick), n: onShelf(cat, sid).length };
+}
+const curList = () => st.lists.find((l) => l.id === st.cur);
+const words = (l) => l.w.map((x) => x.trim()).filter(Boolean);
+const found = (l, sid) => words(l).filter((w) => resolve(w, l.id, sid).state === "ready").length;
+
+function sring(v, size, track = "#E7ECF3") {
+  const sw = size > 100 ? 11 : size > 70 ? 7 : 5, r = size / 2 - sw / 2 - 1, c = 2 * Math.PI * r;
+  const id = "g" + Math.random().toString(36).slice(2, 8);
+  return `<svg viewBox="0 0 ${size} ${size}" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1F6BFF"/><stop offset=".6" stop-color="#7B5CFF"/><stop offset="1" stop-color="#5CC8F0"/></linearGradient></defs>
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${track}" stroke-width="${sw}"/>
+    <circle class="arc" cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="url(#${id})" stroke-width="${sw}" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c}" data-c="${c}" data-v="${v}" style="transition:stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)"/></svg><b>${v}</b>`;
+}
+function fillRing(el, ms = 1000) {
+  const arc = el && el.querySelector(".arc"), b = el && el.querySelector("b"); if (!arc) return;
+  const v = +arc.dataset.v, c = +arc.dataset.c;
+  arc.style.transitionDuration = ms + "ms";
+  requestAnimationFrame(() => requestAnimationFrame(() => { arc.style.strokeDashoffset = c * (1 - v / 100); }));
+  const t0 = performance.now();
+  (function step(t) { const k = Math.min(1, (t - t0) / ms); b.textContent = Math.round(v * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); })(t0);
+}
+const img = (p) => (p.img ? `<img class="thumb" src="img/${p.img}" alt="${esc(p.b + " " + p.n)}">` : `<div class="ph">NO<br>PHOTO</div>`);
+const pin = `<svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>`;
+const check = `<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+const chev = `<svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>`;
+function setShopNames() { document.querySelectorAll(".shopname").forEach((b) => (b.textContent = shop().n)); }
+
+// Shop plan. hl = section to highlight; route = sections to stop at; done = sections finished.
+function planSVG({ hl = null, route = null, done = new Set() } = {}) {
+  const f = (k) => (k === hl ? "#1F6BFF" : "#DCE2EC"), t = (k) => (k === hl ? "#fff" : "#5F6B7E");
+  let s = `<svg viewBox="0 0 300 198" role="img" aria-label="Shop plan, layout illustrative">
+  <rect x="6" y="6" width="288" height="176" rx="6" fill="#fff" stroke="#C9D0DB" stroke-width="1.5"/>
+  <rect x="70" y="175" width="44" height="12" fill="#F2F5FA"/><rect x="196" y="175" width="44" height="12" fill="#F2F5FA"/>
+  <rect x="92" y="13" width="116" height="14" rx="3" fill="${f("dairy")}"/><text x="150" y="23.5" font-size="8.5" text-anchor="middle" fill="${t("dairy")}" font-weight="600">Dairy</text>
+  <rect x="14" y="22" width="14" height="56" rx="3" fill="${f("coffee")}"/><text transform="translate(24 50) rotate(-90)" font-size="8.5" text-anchor="middle" fill="${t("coffee")}" font-weight="600">Coffee</text>
+  <rect x="14" y="94" width="14" height="60" rx="3" fill="#DCE2EC"/><text transform="translate(24 124) rotate(-90)" font-size="8.5" text-anchor="middle" fill="#5F6B7E" font-weight="600">Meat</text>
+  <rect x="272" y="30" width="14" height="118" rx="3" fill="${f("fruit")}"/><text transform="translate(282 89) rotate(90)" font-size="8.5" text-anchor="middle" fill="${t("fruit")}" font-weight="600">Fruit &amp; veg</text>
+  <rect x="96" y="56" width="112" height="18" rx="9" fill="${f("stand2")}"/><text x="152" y="68" font-size="8.5" text-anchor="middle" fill="${t("stand2")}" font-weight="600">Stand 2</text>
+  <rect x="96" y="98" width="112" height="18" rx="9" fill="${f("stand1")}"/><text x="152" y="110" font-size="8.5" text-anchor="middle" fill="${t("stand1")}" font-weight="600">Stand 1</text>
+  ${[0, 1, 2, 3].map((i) => `<rect x="${112 + i * 22}" y="140" width="14" height="12" rx="2" fill="#DCE2EC"/>`).join("")}
+  <text x="150" y="165" font-size="7.5" text-anchor="middle" fill="#5F6B7E">Checkouts</text>
+  <text x="92" y="196" font-size="7.5" text-anchor="middle" fill="#5F6B7E">Exit</text><text x="218" y="196" font-size="7.5" text-anchor="middle" fill="#5F6B7E">Entrance</text>`;
+  if (route) {
+    s += `<path id="rp" d="M${LOOP.map((p) => p.join(" ")).join(" L")}" fill="none" stroke="#7B5CFF" stroke-width="2" stroke-dasharray="4 4" stroke-linecap="round" stroke-linejoin="round"/>`;
+    route.forEach((k, i) => {
+      const [x, y] = SECT[k].stop, ok = done.has(k);
+      s += `<g><circle cx="${x}" cy="${y}" r="8.5" fill="${ok ? "#1F6BFF" : "#7B5CFF"}" stroke="#fff" stroke-width="2"/>${ok ? `<path d="M${x - 3.6} ${y + .2} l2.6 2.6 l4.8 -5.2" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>` : `<text x="${x}" y="${y + 3.2}" font-size="9" text-anchor="middle" fill="#fff" font-weight="700">${i + 1}</text>`}</g>`;
+    });
+  } else s += `<circle cx="218" cy="168" r="5" fill="#1F6BFF" stroke="#fff" stroke-width="2"/><text x="230" y="171" font-size="7.5" fill="#1F6BFF" font-weight="700">You</text>`;
+  return s + "</svg>";
+}
 
 // ===================== Navigation =====================
-const SCREEN = { home: "home", list: "list", product: "product", map: "map-s", floor: "floor", profile: "profile" };
 function show(id, push = true) {
-  document.querySelectorAll(".screen").forEach((s) => s.classList.remove("on"));
-  const el = $(SCREEN[id]); el.classList.add("on"); el.scrollTop = 0;
+  document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("on", s.id === id));
   if (push && hist[hist.length - 1] !== id) hist.push(id);
-  closeSugg();
-  ({ home: renderHome, list: renderList, product: renderProduct, map: renderMap, floor: renderFloor })[id]?.();
+  const y = $(id).scrollTop;
+  ({ lists: renderLists, note: renderNote, shops: renderShops, shop: renderShop, done: renderDone })[id]();
+  $(id).scrollTop = push ? 0 : y; // going back returns to the same place
 }
-function back() { if (hist.length > 1) { hist.pop(); show(hist[hist.length - 1], false); } }
-
-// ===================== Home =====================
-function renderHome() {
-  setShopNames();
-  $("homeChips").innerHTML = Object.keys(DATA).map((k) => `<button class="chip" data-chip="${k}">${k}</button>`).join("");
-  $("goals").innerHTML = GOALS.map((g) => `<div class="slash"></div>
-    <button class="goal" data-goal="${g.k}" aria-label="Rank by ${g.t}"><h2>${g.t.replace(" ", "<br>")}</h2>
-      <div class="meter"><i style="width:${g.p}%"></i></div>
-      <div class="meter-l"><span>This month</span><span>${g.p}% of your picks</span></div></button>`).join("");
-}
-
-// ===================== List =====================
-function rowHTML(k, p, i, animate) {
-  const v = sc(p), unv = v === null, pick = !animate && i === 0 && !unv;
-  return `<button class="opt ${pick ? "pick" : ""} ${unv ? "unv" : ""} ${animate ? "enter" : ""}" data-prod="${k}|${p.n}">
-    <span class="lead">${pick ? '<span class="dot"></span>' : ""}</span>
-    <span class="pn">${p.n}${unv ? '' : ""}</span>
-    <span class="sv">${animate ? "" : unv ? "no data" : fmt(v)}</span><span class="chev">›</span></button>`;
-}
-function renderList() {
-  setShopNames();
-  $("gchips").innerHTML = GOALS.map((g) => `<button class="gchip ${g.k === st.goal ? "on" : ""}" data-gchip="${g.k}">${g.t}</button>`).join("");
-  $("groups").innerHTML = st.list.map((k) => {
-    const r = ranked(k), best = r[0], open = st.open === k;
-    return `<div class="group ${open ? "open" : ""}" data-k="${k}">
-      <button class="ghead" data-cat="${k}" aria-expanded="${open}"><span class="nm">${k}</span><span class="ct">${r.length} on the shelf</span><span class="sp"></span>
-        <span class="best">${sc(best) !== null ? `<i></i>${best.n}` : ""}</span><span class="chev">›</span></button>
-      <div class="gbody"><div class="colhead"><span>Product</span><span>${goalT()} score</span></div>
-        <div class="rows">${r.map((p, i) => rowHTML(k, p, i, false)).join("")}</div>
-        <div class="gfoot"><span></span><button class="link" data-rm="${k}">Remove ${k} from list</button></div></div></div>`;
-  }).join("") || `<p class="note">Your list is empty. Search above, for example “pasta”.</p>`;
-}
-function animateShelf(k, prevOrder) {
-  // Show the shelf in its old order (or as it stands), then move the products into the new ranking.
-  const box = document.querySelector(`.group[data-k="${k}"] .rows`); if (!box) return;
-  const from = prevOrder || shelf(k), to = ranked(k);
-  box.innerHTML = from.map((p, i) => rowHTML(k, p, i, true)).join("");
-  const els = [...box.children];
-  els.forEach((b, i) => setTimeout(() => b.classList.remove("enter"), prevOrder ? 0 : 70 * i));
-  setTimeout(() => els.forEach((b, i) => { const v = sc(from[i]), sv = b.querySelector(".sv"); if (v === null) sv.textContent = "no data"; else countUp(sv, v, 600); }), prevOrder ? 0 : 400);
-  setTimeout(() => {
-    const first = els.map((b) => b.getBoundingClientRect().top);
-    to.forEach((p) => box.appendChild(els[from.indexOf(p)]));
-    els.forEach((b, i) => { const d = first[i] - b.getBoundingClientRect().top; b.style.transition = "none"; b.style.transform = `translateY(${d}px)`; });
-    requestAnimationFrame(() => requestAnimationFrame(() => els.forEach((b) => { b.style.transition = ""; b.style.transform = ""; })));
-    setTimeout(() => {
-      if (sc(to[0]) === null) return;
-      const best = els[from.indexOf(to[0])];
-      best.classList.add("pick"); best.querySelector(".lead").innerHTML = '<span class="dot"></span>';
-    }, 520);
-  }, prevOrder ? 650 : 1200);
-}
-
-// ===================== Search =====================
-function suggest(q) {
-  q = norm(q); if (!q) return [];
-  const out = [];
-  for (const [k, words] of Object.entries(SYN)) if (words.some((w) => norm(w).startsWith(q) || (q.length > 2 && norm(w).includes(q)))) out.push({ k });
-  if (q.length > 1) for (const [k, c] of Object.entries(DATA)) for (const p of c.items) if (norm(p.n).includes(q)) out.push({ k, p });
-  return out.slice(0, 6);
-}
-function closeSugg() { document.querySelectorAll(".sugg").forEach((x) => x.classList.remove("on")); }
-function pick(r) {
-  if (!st.list.includes(r.k)) st.list.unshift(r.k);
-  st.open = r.k;
-  document.querySelectorAll(".search input").forEach((i) => { i.value = ""; i.blur(); });
-  closeSugg();
-  if (r.p) { st.prod = r.p; if (hist[hist.length - 1] !== "list") show("list"); show("product"); return; }
-  if (hist[hist.length - 1] !== "list") show("list"); else renderList();
-  animateShelf(r.k);
-}
-document.querySelectorAll("[data-search]").forEach((wrap) => {
-  const inp = wrap.querySelector("input"), box = wrap.querySelector(".sugg");
-  let res = [], hl = 0;
-  const draw = () => {
-    res = suggest(inp.value); hl = 0;
-    if (!inp.value.trim()) { box.classList.remove("on"); return; }
-    box.innerHTML = res.length
-      ? res.map((r, i) => `<button class="${i === 0 ? "hl" : ""}" data-i="${i}" role="option">${r.p ? r.p.n : `<span style="text-transform:capitalize">${r.k}</span>`}<small>${r.p ? "in " + r.k : shelf(r.k).length + " on the shelf in " + shop().s}</small></button>`).join("")
-      : `<div class="empty">“${inp.value.trim()}” is not in this shop yet. Try ${Object.keys(DATA).join(", ")}.</div>`;
-    box.classList.add("on");
-  };
-  inp.addEventListener("input", draw);
-  inp.addEventListener("focus", draw);
-  inp.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); if (res[hl]) pick(res[hl]); }
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); if (!res.length) return; hl = (hl + (e.key === "ArrowDown" ? 1 : res.length - 1)) % res.length; box.querySelectorAll("button").forEach((b, i) => b.classList.toggle("hl", i === hl)); }
-    if (e.key === "Escape") { box.classList.remove("on"); inp.blur(); }
-  });
-  box.addEventListener("mousedown", (e) => e.preventDefault());
-  box.addEventListener("click", (e) => { const b = e.target.closest("button[data-i]"); if (b) pick(res[+b.dataset.i]); });
-  inp.addEventListener("blur", () => setTimeout(() => box.classList.remove("on"), 120));
+function back() { closeSheets(); if (hist.length > 1) { hist.pop(); show(hist[hist.length - 1], false); } }
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-back]")) back();
+  else if (e.target.closest("[data-shopbtn]")) show("shops");
+  else if (e.target.closest("[data-close]") || e.target.id === "scrim") closeSheets();
 });
 
-// ===================== Product =====================
-function renderProduct() {
-  const p = st.prod, k = catOf(p), v = sc(p), unv = v === null, r = ranked(k);
-  const verified = r.filter((x) => sc(x) !== null), pos = verified.indexOf(p) + 1;
-  $("pCtx").textContent = goalT();
-  $("pImg").style.display = p.img ? "" : "none"; $("pPh").style.display = p.img ? "none" : ""; if (p.img) { $("pImg").src = "img/" + p.img; $("pImg").alt = p.n; }
-  $("pName").textContent = p.n;
-  const parts = p.d.split(" · ");
-  $("pOrigin").innerHTML = `${parts[0]}${parts.length > 1 ? `<br>${parts.slice(1).join(" · ")}` : ""}<br><span style="color:#fff">CHF ${p.pr.toFixed(2)}</span>`;
-  $("pScore").parentElement.style.display = unv ? "none" : ""; $("pScore").textContent = "0";
-  $("pScoreL").textContent = unv ? "No verified score yet" : `${goalT()} score`; $("pScoreL").style.marginTop = unv ? "18px" : "";
-  const onShelf = p.shops.includes(st.shop);
-  $("pRank").innerHTML = !onShelf ? `Not on the shelf in ${shop().s}` : unv ? "" : pos === 1 ? `<i></i>Point’s pick: best of ${verified.length} in ${shop().s}` : `Number ${pos} of ${verified.length} in ${shop().s}`;
-  if (unv) {
-    $("pBody").innerHTML = `<div class="unvbox">The producer has not shared verified data yet. Point shows the product, but never recommends it.</div>`;
-  } else {
-    $("pBody").innerHTML = `<div class="label" style="margin-top:0">Why this score</div>` +
-      Object.entries(DIMS).map(([dk, dl]) => `<div class="dimrow ${dk === st.goal ? "hi" : ""}"><span>${dl}</span><div class="thin"><i style="width:${p.s[dk]}%"></i></div><b>${Math.round(p.s[dk])}</b></div>`).join("") +
-      `<div class="proof"><div>✓ Verifiable score<small>Proof 0x${hash(p.n)}${hash(p.d).slice(0, 4)}</small></div><button id="verify">Verify</button></div>`;
-    const bars = [...$("pBody").querySelectorAll(".thin i")], w = bars.map((b) => parseFloat(b.style.width));
-    bars.forEach((b) => (b.style.width = "0"));
-    const t0 = performance.now();
-    const grow = (t) => { const q = Math.min(1, (t - t0) / 900), e = 1 - Math.pow(1 - q, 3); bars.forEach((b, i) => (b.style.width = w[i] * e + "%")); if (q < 1) requestAnimationFrame(grow); };
-    requestAnimationFrame(grow);
-    countUp($("pScore"), v);
-  }
-  const here = p.shops.includes(st.shop);
-  $("findBtn").textContent = here ? `Find it in ${shop().s}` : `Not in ${shop().s}: see shops`;
-  $("findBtn").dataset.go = here ? "floor" : "map";
+// ===================== 1 · Lists =====================
+function renderLists() {
+  st.cur = null; setShopNames();
+  const q = norm($("lq").value);
+  const match = (l) => !q || norm(l.t + " " + l.w.join(" ")).includes(q);
+  const row = (l) => {
+    const n = words(l).length, f = found(l, st.shop);
+    const stat = l.shopped ? `<span class="st grey">Shopped · ${n} items</span>` : n === 0 ? `<span class="st grey"><i class="ring looking"></i>Writing…</span>` : `<span class="st"><i class="ring"></i>${f} of ${n} found</span>`;
+    return `<button class="lrow" data-list="${l.id}"><div><b>${esc(l.t || "New list")}</b><small>${l.when} ${esc(words(l).join(", "))}</small>${stat}</div>${chev}</button>`;
+  };
+  const now = st.lists.filter((l) => !l.prev && match(l)), prev = st.lists.filter((l) => l.prev && match(l));
+  $("listGroups").innerHTML = (now.length ? `<div class="sec">Today</div><div class="group">${now.map(row).join("")}</div>` : "") +
+    (prev.length ? `<div class="sec">Previous 7 days</div><div class="group">${prev.map(row).join("")}</div>` : "") +
+    (!now.length && !prev.length ? `<p class="hint" style="margin:20px 0">No list matches “${esc($("lq").value)}”.</p>` : "");
+  $("nLists").textContent = st.lists.length + " lists";
+  document.querySelectorAll("[data-list]").forEach((b) => (b.onclick = () => openList(b.dataset.list)));
+}
+$("lq").addEventListener("input", renderLists);
+function openList(id, mode) {
+  const l = st.lists.find((x) => x.id === id);
+  st.cur = id; st.open = null; st.mode = mode || (words(l).length ? "done" : "write"); show("note");
+}
+$("compose").onclick = () => newList();
+function newList() {
+  // an empty list left over from before is reused, not duplicated
+  st.lists = st.lists.filter((l) => words(l).length || l.t.trim());
+  const id = "n" + Date.now();
+  st.lists.unshift({ id, t: "", w: [""], when: "Today" });
+  openList(id, "write");
+  setTimeout(() => $("titleIn") && $("titleIn").focus(), 350);
 }
 
-// ===================== Map =====================
+// ===================== 2 · Note =====================
+function renderNote() {
+  const l = curList(); setShopNames();
+  $("modeBtn").textContent = st.mode === "write" ? "Done" : "Edit";
+  if (st.mode === "write") renderWrite(l); else renderDoneList(l);
+}
+$("modeBtn").onclick = () => toggleMode();
+function toggleMode() {
+  const l = curList();
+  if (st.mode === "write") { l.w = words(l); if (!l.t.trim()) l.t = "New list"; st.mode = "done"; st.open = null; if (document.activeElement) document.activeElement.blur(); }
+  else { l.w = [...words(l), ""]; st.mode = "write"; }
+  renderNote();
+}
+function renderWrite(l) {
+  const when = today.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) + " at " + today.toTimeString().slice(0, 5);
+  $("noteBody").innerHTML = `<div class="date">${when}</div>
+    <input class="title-in" id="titleIn" placeholder="Title" value="${esc(l.t)}" enterkeyhint="next" autocomplete="off" aria-label="List title">
+    <div id="lines">${l.w.map((w, i) => lineHTML(w, i)).join("")}</div>
+    <p class="whint">One thing per line, the way you always write it. A ring appears when Point has found the best verified product in ${esc(shop().n)}. Tap Done to see them.</p>`;
+  const t = $("titleIn");
+  t.oninput = () => (l.t = t.value);
+  t.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); focusLine(0); } };
+  bindLines(l);
+}
+function lineHTML(w, i) {
+  return `<div class="line"><input data-i="${i}" value="${esc(w)}" placeholder="${i === 0 ? "e.g. pasta" : ""}" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="next" aria-label="Item ${i + 1}"><i class="ring ${ringState(w)}"></i></div>`;
+}
+function ringState(w) { if (!w.trim()) return "empty"; return resolve(w, st.cur).state === "ready" ? "" : "none"; }
+function settle(ring, value, ms = 750) { clearTimeout(ring._t); ring.className = "ring " + (value.trim() ? "looking" : "empty"); ring._t = setTimeout(() => (ring.className = "ring " + ringState(value)), ms); }
+function bindLines(l) {
+  document.querySelectorAll("#lines input").forEach((inp) => {
+    const i = +inp.dataset.i;
+    inp.oninput = () => { l.w[i] = inp.value; settle(inp.nextElementSibling, inp.value); };
+    inp.onkeydown = (e) => {
+      if (e.key === "Enter") { e.preventDefault(); if (!inp.value.trim()) return; l.w.splice(i + 1, 0, ""); redrawLines(l, i + 1, i); }
+      if (e.key === "Backspace" && !inp.value && l.w.length > 1) { e.preventDefault(); l.w.splice(i, 1); redrawLines(l, Math.max(0, i - 1)); }
+    };
+  });
+}
+function redrawLines(l, focus, pending) {
+  const looking = [...document.querySelectorAll("#lines .ring.looking")].map((r) => +r.previousElementSibling.dataset.i);
+  $("lines").innerHTML = l.w.map((w, i) => lineHTML(w, i)).join(""); bindLines(l);
+  // words still being looked up keep their faint ring until Point has the answer
+  new Set([...looking.map((i) => (i > (pending ?? 1e9) ? i + 1 : i)), ...(pending != null ? [pending] : [])]).forEach((i) => {
+    const inp = document.querySelector(`#lines input[data-i="${i}"]`); if (inp && inp.value.trim()) settle(inp.nextElementSibling, inp.value, 650);
+  });
+  focusLine(focus);
+}
+function focusLine(i) { const el = document.querySelector(`#lines input[data-i="${i}"]`); if (el) { el.focus(); const v = el.value; el.value = ""; el.value = v; } }
+
+function renderDoneList(l) {
+  const ws = words(l), f = found(l, st.shop);
+  let total = 0; const secs = new Set();
+  const rows = ws.map((w, i) => {
+    const r = resolve(w, l.id);
+    if (r.state === "ready") { total += r.pick.pr; secs.add(DATA[r.cat].sect); }
+    return itemHTML(r, i);
+  }).join("");
+  $("noteBody").innerHTML = `<h1>${esc(l.t)}</h1>
+    <div class="meta"><button class="pill" data-shopbtn>${pin}<span class="shopname"></span></button><span class="chip">${f} of ${ws.length} found</span></div>
+    <div class="items">${rows || `<p class="whint">This list is empty. Tap Edit to write.</p>`}</div>
+    ${l.shopped || !f ? "" : `<div class="go"><button class="btn primary" id="startBtn">Start shopping <span>≈ ${chf(total)}</span></button></div>`}
+    <p class="note">Illustrative data, not measured. Point is not affiliated with Migros. Photos: <a href="https://github.com/steinerchristof/point-prototype/blob/main/CREDITS.md" target="_blank" rel="noopener" style="color:inherit">Wikimedia Commons</a>.</p>`;
+  setShopNames();
+  document.querySelectorAll(".ihead").forEach((h) => (h.onclick = () => toggleItem(+h.dataset.i)));
+  document.querySelectorAll("[data-others]").forEach((b) => (b.onclick = () => openOthers(b.dataset.others)));
+  document.querySelectorAll("[data-proof]").forEach((b) => (b.onclick = () => openProof(b.dataset.proof)));
+  document.querySelectorAll("[data-where]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); show("shops"); }));
+  if ($("startBtn")) $("startBtn").onclick = startShopping;
+  const card = document.querySelector(".card .sring"); if (card) fillRing(card, 900);
+}
+function itemHTML(r, i) {
+  const open = st.open === i;
+  const cls = st.open !== null && !open ? "item faded" : "item";
+  if (r.state === "unknown") return `<div class="${cls}"><button class="ihead" data-i="${i}"><div class="irow"><span class="word">${esc(r.word)}</span><i class="ring none"></i></div><div class="pickl">Point doesn’t know this product yet. It stays on your list.</div></button></div>`;
+  if (r.state === "none") {
+    const e = r.elsewhere[0], D = DATA[r.cat];
+    return `<div class="${cls}"><button class="ihead" data-i="${i}"><div class="irow"><span class="word">${esc(r.word)}</span><i class="ring none"></i></div>
+      <div class="pickl">No verified ${esc(r.cat)} in this shop yet</div><div class="place">Point recommends nothing here. ${SECT[D.sect].t}, ${D.spot}.</div>
+      ${open && e ? `<span class="elsewhere" data-where role="button">${pin} ${esc(e.n)} has a verified one ›</span>` : ""}</button></div>`;
+  }
+  const p = r.pick, s = score(p), sec = SECT[DATA[r.cat].sect];
+  const head = `<button class="ihead" data-i="${i}"><div class="irow"><span class="word">${esc(r.word)}</span><span class="badge"><i class="ring"></i>${s}</span></div>
+    ${open ? "" : `<div class="pickl">${esc(p.b)} · ${esc(p.n)}${r.mine ? " · your choice" : ""}</div><div class="place">${sec.t}</div>`}</button>`;
+  if (!open) return `<div class="${cls}">${head}</div>`;
+  const others = onShelf(r.cat).length - 1;
+  return `<div class="${cls}">${head}<div class="card">
+    <div class="prod">${img(p)}<div class="tx"><div class="brand">${esc(p.b)}</div><div class="pname">${esc(p.n)}</div><div class="pmeta">${p.pk} · ${chf(p.pr)}</div></div>
+      <div><div class="sring">${sring(s, 58)}</div><span class="ver">Verified</span></div></div>
+    <div class="loc">${pin}${sec.t} · ${DATA[r.cat].spot} · ${p.h}</div>
+    <div class="plan">${planSVG({ hl: DATA[r.cat].sect })}</div>
+    <div class="twobtn"><button class="btn soft" data-others="${r.cat}">Other ${esc(r.cat)} · ${others}</button><button class="btn dark" data-proof="${r.cat}">See the proof</button></div>
+  </div></div>`;
+}
+function toggleItem(i) {
+  const row = () => document.querySelectorAll(".item")[i];
+  const before = row() ? row().getBoundingClientRect().top : 0;
+  st.open = st.open === i ? null : i; renderNote();
+  const el = row(); if (!el) return;
+  $("note").scrollTop += el.getBoundingClientRect().top - before; // the tapped row stays where it was
+  if (st.open !== null) setTimeout(() => el.scrollIntoView({ block: "nearest", behavior: "smooth" }), 60);
+}
+
+// ===================== Sheets =====================
+function openSheet(id) { $("scrim").classList.add("on"); $(id).classList.add("on"); $(id).scrollTop = 0; }
+function closeSheets() { $("scrim").classList.remove("on"); document.querySelectorAll(".sheet").forEach((s) => s.classList.remove("on")); }
+let oCat = null;
+function openOthers(cat) {
+  oCat = cat; st.goal = "all";
+  $("oTitle").textContent = "Other " + cat;
+  $("oSub").textContent = `Everything on this shelf in ${shop().n} (illustrative). Tap one to make it your pick.`;
+  $("oGoals").innerHTML = `<span class="rankby">Rank by</span>` + GOALS.map(([k, t]) => `<button class="goal${k === st.goal ? " on" : ""}" data-goal="${k}">${t}</button>`).join("");
+  document.querySelectorAll("[data-goal]").forEach((b) => (b.onclick = () => setGoal(b.dataset.goal)));
+  renderOthers(false); openSheet("others");
+}
+function renderOthers(animate) {
+  const box = $("oList"), before = {};
+  if (animate) box.querySelectorAll(".opt").forEach((el) => (before[el.dataset.n] = el.getBoundingClientRect().top));
+  const cur = resolve(cat2word(oCat), st.cur).pick;
+  const list = ranked(oCat, st.goal);
+  const label = GOALS.find(([k]) => k === st.goal)[1];
+  box.innerHTML = list.map((p, i) => {
+    const v = score(p, st.goal);
+    if (v === null) return `<div class="opt unv" data-n="${esc(p.n)}">${img(p)}<div class="tx"><b>${esc(p.b)} · ${esc(p.n)}</b><small>${p.pk} · ${chf(p.pr)}</small></div><span class="num">No verified score</span></div>`;
+    return `<button class="opt${i === 0 ? " top" : ""}" data-n="${esc(p.n)}" aria-label="${esc(p.b + " " + p.n + ", " + label + " " + v)}">${img(p)}<div class="tx"><b>${esc(p.b)} · ${esc(p.n)}</b><small>${p.pk} · ${chf(p.pr)}</small>${cur && cur.n === p.n ? "<em>✓ Your pick</em>" : ""}</div><span class="num">${v}</span></button>`;
+  }).join("");
+  box.querySelectorAll("button.opt").forEach((b) => (b.onclick = () => choose(b.dataset.n)));
+  if (animate) box.querySelectorAll(".opt").forEach((el) => {
+    const dy = (before[el.dataset.n] ?? 0) - el.getBoundingClientRect().top; if (!dy) return;
+    el.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: 700, easing: "cubic-bezier(.2,.8,.2,1)" });
+  });
+}
+function cat2word(cat) { const l = curList(); return (l && words(l).find((w) => catOf(w) === cat)) || cat; }
+function setGoal(g) { st.goal = g; document.querySelectorAll("[data-goal]").forEach((b) => b.classList.toggle("on", b.dataset.goal === g)); renderOthers(true); }
+function choose(n) {
+  const best = ranked(oCat, "all").find((p) => p.d);
+  if (best && best.n === n) delete st.pick[st.cur + ":" + oCat]; else st.pick[st.cur + ":" + oCat] = n;
+  renderOthers(false); setTimeout(() => { closeSheets(); renderNote(); }, 400);
+}
+let proofTok = 0;
+function openProof(cat) {
+  const r = resolve(cat2word(cat), st.cur), p = r.pick, s = score(p);
+  const next = ranked(cat).filter((x) => x.d && x !== p)[0];
+  const kind = { pasta: "this pasta", oranges: "these oranges", apples: "these apples", milk: "this milk", coffee: "this coffee", tomatoes: "these tomatoes", "olive oil": "this oil" }[cat];
+  $("proofBody").innerHTML = `<div class="phero"><div class="sring">${sring(s, 84, "rgba(255,255,255,.14)")}</div><div>
+      <div class="kick">Why ${esc(kind)}</div><h3>${r.rank === 0 ? `Best of ${r.n} on this shelf` : `Number ${r.rank + 1} of ${r.n} on this shelf`}</h3>
+      <p>${next ? `${r.rank === 0 ? "Next best" : "Best"}: ${score(next)} · ${esc(next.b)}` : "The only verified one here"}</p></div></div>
+    <div class="lab">Why it scores</div>${p.why.map(([a, b]) => `<div class="why"><span>${a}</span><span>${b}</span></div>`).join("")}
+    <div class="lab">Score by dimension</div>${DIMS.map(([k, t]) => `<div class="dimrow"><span>${t}</span><span class="bar"><i data-w="${p.d[k]}"></i></span><b>${p.d[k]}</b></div>`).join("")}
+    <p class="pnote" style="margin-top:6px">Point score = average of the four dimensions, equal weights in this first version. The formula is open.</p>
+    <div class="lab">Proof</div>
+    <span class="sim" style="margin:2px 0 6px">Simulated in this prototype · planned design</span>
+    <div class="chk"><i>${check}</i><b>Open formula</b><small>anyone can rerun it</small></div>
+    <div class="chk"><i>${check}</i><b>Audited data</b><small>independent auditor, at the source</small></div>
+    <div class="chk"><i>${check}</i><b>Zero-knowledge proof</b><small id="zkT">checking…</small></div>
+    <p class="pnote">The producer’s private data never leaves the audit. Your phone checks the proof, not the data.</p>`;
+  openSheet("proof");
+  const tok = ++proofTok, later = (f, ms) => setTimeout(() => tok === proofTok && f(), ms);
+  later(() => fillRing($("proofBody").querySelector(".sring"), 1000), 250);
+  later(() => $("proofBody").querySelectorAll(".bar i").forEach((b) => (b.style.width = b.dataset.w + "%")), 350);
+  $("proofBody").querySelectorAll(".chk").forEach((c, i) => later(() => { c.classList.add("ok"); if (i === 2 && $("zkT")) $("zkT").textContent = "0.04 s, simulated"; }, 1000 + i * 600));
+}
+
+// ===================== 3 · Shops nearby =====================
 let map, layer;
-function renderMap() {
-  const p = hist.includes("product") ? st.prod : null;
-  st.mapMode = p ? "product" : "browse";
-  $("mapCtx").textContent = p ? p.n : "Choose your shop";
-  $("legend").innerHTML = p
-    ? `<span><i style="background:var(--green)"></i>Has ${p.n}</span><span><i></i>Not in stock</span><span><i style="background:var(--blue)"></i>You</span>`
-    : `<span><i style="background:var(--green)"></i>Shop</span><span><i style="background:var(--blue)"></i>You</span>`;
+function km(a, b) { const R = 6371, t = Math.PI / 180, dl = (b[0] - a[0]) * t, dn = (b[1] - a[1]) * t; const h = Math.sin(dl / 2) ** 2 + Math.cos(a[0] * t) * Math.cos(b[0] * t) * Math.sin(dn / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); }
+function basket(l, sid) { const ps = words(l).map((w) => resolve(w, l.id, sid)).filter((r) => r.state === "ready").map((r) => score(r.pick)); return ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) : null; }
+function renderShops() {
+  const l = curList() || st.lists.find((x) => !x.shopped && words(x).length) || st.lists[0];
+  const prev = hist[hist.length - 2];
+  $("shopsBack").textContent = prev === "note" ? l.t : "Lists";
+  const n = words(l).length;
+  $("shopsSub").textContent = `How much of “${l.t}” each shop has with a verified score. Tap a shop to switch.`;
+  const rows = SHOPS.map((s) => ({ s, f: found(l, s.id), d: km(ME, s.ll), b: basket(l, s.id) })).sort((a, b) => b.f - a.f || a.d - b.d);
+  $("shopRows").innerHTML = rows.map(({ s, f, d, b }) => `<button class="srow${f === n ? " full" : ""}" data-pick="${s.id}"><div class="tx"><b>${s.n}${s.id === st.shop ? ' <span class="you">· your shop</span>' : ""}</b><small>${s.a} · ${d.toFixed(1)} km</small></div><div class="cnt">${f} of ${n} found<small>basket ${b ?? "–"}</small></div></button>`).join("");
+  document.querySelectorAll("[data-pick]").forEach((b) => (b.onclick = () => { st.shop = b.dataset.pick; st.open = null; setShopNames(); renderShops(); setTimeout(back, 450); }));
+  setTimeout(() => drawMap(l), 80);
+}
+function drawMap(l) {
+  if (!window.L) { $("map").innerHTML = '<p class="note" style="padding:120px 20px">Map needs an internet connection.</p>'; return; }
   if (!map) {
     map = L.map("map", { zoomControl: false, attributionControl: true, scrollWheelZoom: false });
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(map);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap contributors" }).addTo(map);
     layer = L.layerGroup().addTo(map);
-    map.setView([47.427, 9.382], 14);
   }
-  layer.clearLayers();
-  const rows = SHOPS.map((s) => ({ s, ok: !p || p.shops.includes(s.id), km: map.distance(ME, s.ll) / 1000 })).sort((a, b) => (b.ok - a.ok) || (a.km - b.km));
-  L.marker(ME, { icon: L.divIcon({ className: "", html: '<div class="pin me"></div>', iconSize: [16, 16] }), keyboard: false, zIndexOffset: 500 }).addTo(layer);
-  rows.forEach(({ s, ok }) => L.marker(s.ll, { icon: L.divIcon({ className: "", html: `<div class="pin ${ok ? "ok" : ""}"></div>`, iconSize: [16, 16] }) }).addTo(layer)
-    .bindTooltip(s.s, { direction: s.dir, offset: s.dir === "right" ? [10, 0] : s.dir === "bottom" ? [0, 10] : [0, -8], permanent: true }).on("click", () => { if (ok) chooseShop(s.id); }));
-  $("shops").innerHTML = rows.map(({ s, ok, km }) => `<button class="shop ${p && s.id === st.shop ? "cur" : ""}" ${p && !ok ? 'disabled style="cursor:default;opacity:.8"' : `data-shop="${s.id}"`}>
-      <div class="info"><b>${s.n}</b><span>${s.a} · <span class="nw">${km.toFixed(1)} km</span>${p && s.id === st.shop ? ' · <span class="nw">your shop</span>' : ""}</span></div>
-      <em class="${p ? (ok ? "ok" : "no") : ""}">${p ? (ok ? "In stock" : "Not here") : (s.id === st.shop ? "✓ Selected" : "Choose")}</em><span class="chev" style="${p && !ok ? "visibility:hidden" : ""}">›</span></button>`).join("");
-  setTimeout(() => { map.invalidateSize(); map.fitBounds(L.latLngBounds([ME, ...SHOPS.map((x) => x.ll)]), { padding: [34, 34] }); }, 60);
-}
-function chooseShop(id) {
-  st.shop = id; setShopNames();
-  if (st.mapMode === "product") { if (st.prod.shops.includes(id)) show("floor"); else renderMap(); }
-  else back();
+  map.invalidateSize(); layer.clearLayers();
+  const n = words(l).length;
+  L.circleMarker(ME, { radius: 7, color: "#fff", weight: 3, fillColor: "#0B1220", fillOpacity: 1 }).addTo(layer).bindTooltip("You", { permanent: true, direction: "top", className: "tag me", offset: [0, -8] });
+  SHOPS.forEach((s) => {
+    const f = found(l, s.id), full = f === n, cur = s.id === st.shop;
+    L.circleMarker(s.ll, { radius: 8, color: "#fff", weight: 2.5, fillColor: full ? "#7B5CFF" : "#1F6BFF", fillOpacity: 1 }).addTo(layer)
+      .bindTooltip(`${s.n.replace("Migros ", "")}<small>${f} of ${n}${full ? " ✓" : ""}</small>`, { permanent: true, direction: s.dir, className: "tag" + (cur ? " cur" : ""), offset: s.dir === "left" ? [-9, 0] : s.dir === "right" ? [9, 0] : [0, s.dir === "top" ? -9 : 9] });
+  });
+  map.fitBounds(L.latLngBounds([ME, ...SHOPS.map((s) => s.ll)]), { padding: [44, 30] });
 }
 
-// ===================== Floor plan =====================
-function renderFloor() {
-  const p = st.prod, k = catOf(p), s = shop(), inStock = p.shops.includes(s.id), A = DATA[k].aisle;
-  $("floorCtx").textContent = s.n;
-  const W = 320, x0 = 22, gap = 48, aw = 30;
-  const aisles = AISLES.map((lab, i) => {
-    const x = x0 + i * gap, on = i + 1 === A && inStock;
-    return `<rect x="${x}" y="44" width="${aw}" height="150" rx="5" fill="${on ? "#4C8DFF" : "none"}" stroke="${on ? "#4C8DFF" : "rgba(255,255,255,.6)"}" stroke-width="1.2"/>
-      <text x="${x + aw / 2}" y="34" fill="#fff" font-size="12" text-anchor="middle" font-family="Jost" opacity="${on ? 1 : .75}">${i + 1}</text>
-      <text x="${x + aw / 2}" y="100" fill="${on ? "#fff" : "rgba(255,255,255,.75)"}" font-size="10" text-anchor="middle" font-family="Jost" letter-spacing="1.2" transform="rotate(-90 ${x + aw / 2} 100)">${lab.toUpperCase()}</text>`;
+// ===================== 4 · In the shop =====================
+function startShopping() { st.ticked = new Set(); st.started = Date.now(); st.animRoute = true; show("shop"); }
+function shopItems() { const l = curList(); return words(l).map((w) => resolve(w, l.id)).map((r) => ({ r, sect: r.state === "ready" ? DATA[r.cat].sect : null })); }
+function renderShop() {
+  const l = curList(), items = shopItems();
+  $("shopBack").textContent = l.t;
+  const stops = ORDER.filter((k) => items.some((x) => x.sect === k));
+  items.forEach((x, i) => (x.i = i));
+  const doneSects = new Set(stops.filter((k) => items.filter((x) => x.sect === k).every((x) => st.ticked.has(x.i))));
+  $("routePlan").innerHTML = planSVG({ route: stops, done: doneSects });
+  const nextSect = stops.find((k) => !doneSects.has(k));
+  $("nextUp").innerHTML = nextSect ? `${pin}Next: <b>${SECT[nextSect].t}</b> · ${items.filter((x) => x.sect === nextSect && !st.ticked.has(x.i)).map((x) => esc(x.r.word)).join(", ")}` : `${pin}<b>All found.</b> Off to the checkouts.`;
+  $("tickCount").textContent = `${st.ticked.size} of ${items.length} ticked`;
+  let html = "";
+  items.forEach((x, i) => (x.i = i));
+  stops.forEach((k, j) => { html += `<div class="gtitle">${j + 1} · ${SECT[k].t}</div>` + items.filter((x) => x.sect === k).map((x) => tickHTML(x, `${esc(x.r.pick.b)} · ${esc(x.r.pick.n)}`)).join(""); });
+  const free = items.filter((x) => !x.sect);
+  if (free.length) html += `<div class="gtitle">Your choice</div>` + free.map((x) => tickHTML(x, x.r.state === "none" ? `No verified option · ${SECT[DATA[x.r.cat].sect].t}` : "Not known to Point yet", true)).join("");
+  html += `<div class="go"><button class="btn primary center" id="finish">Finish shopping</button></div>`;
+  $("route").innerHTML = html;
+  document.querySelectorAll("[data-tick]").forEach((b) => (b.onclick = () => tick(+b.dataset.tick)));
+  $("finish").onclick = finish;
+  const rp = $("rp"); if (rp && st.animRoute) { st.animRoute = false; const len = rp.getTotalLength(); rp.style.strokeDasharray = len; rp.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: 1500, easing: "ease-out" }).onfinish = () => (rp.style.strokeDasharray = "4 4"); }
+}
+function tickHTML(x, sub, free) { const on = st.ticked.has(x.i); return `<button class="tick${on ? " on" : ""}${free ? " free" : ""}" data-tick="${x.i}" data-w="${esc(x.r.word)}" aria-pressed="${on}"><span class="c">${check}</span><div class="tx"><b>${esc(x.r.word)}</b><small>${sub}</small></div></button>`; }
+function tick(i) { st.ticked.has(i) ? st.ticked.delete(i) : st.ticked.add(i); const y = $("shop").scrollTop; renderShop(); $("shop").scrollTop = y; if (st.ticked.size === shopItems().length) setTimeout(finish, 800); }
+$("endBtn").onclick = () => finish();
+function finish() { if ($("done").classList.contains("on") || !$("shop").classList.contains("on")) return; curList().shopped = true; show("done"); }
+
+// ===================== 5 · Shop done =====================
+function renderDone() {
+  const l = curList(), items = shopItems();
+  const got = items.filter((x, i) => x.r.state === "ready" && st.ticked.has(i));
+  const b = got.length ? Math.round(got.reduce((a, x) => a + score(x.r.pick), 0) / got.length) : 0;
+  const spent = got.reduce((a, x) => a + x.r.pick.pr, 0);
+  const stops = new Set(got.map((x) => x.sect)).size;
+  $("doneWhen").textContent = `${l.t} · ${shop().n} · today at ${new Date().toTimeString().slice(0, 5)}`;
+  $("bigRing").innerHTML = sring(b, 160);
+  $("gain").textContent = got.length ? (b >= USUAL ? `+${b - USUAL} points vs. your usual basket` : `${b - USUAL} points vs. your usual basket`) : "Nothing ticked yet";
+  $("three").innerHTML = `<div><b>${got.length} of ${items.length}</b><small>verified</small></div><div><b>${chf(spent)}</b><small>on Point picks</small></div><div><b>${stops} stops</b><small>one loop</small></div>`;
+  $("doneRows").innerHTML = items.map(({ r }, i) => {
+    const ok = st.ticked.has(i);
+    return r.state === "ready"
+      ? `<div class="drow"><span class="ok${ok ? "" : " grey"}">${ok ? "✓" : "–"}</span><div class="tx">${esc(r.word)}<small>${esc(r.pick.b)} · ${esc(r.pick.n)}</small></div><span class="badge"><i class="ring"></i>${score(r.pick)}</span></div>`
+      : `<div class="drow"><span class="ok grey">${ok ? "✓" : "–"}</span><div class="tx">${esc(r.word)}</div><span class="yc">your choice</span></div>`;
   }).join("");
-  const px = x0 + (A - 1) * gap + aw / 2;
-  $("plan").innerHTML = `<svg viewBox="0 0 ${W} 280" role="img" aria-label="Shop floor plan${inStock ? `, ${p.n} in aisle ${A}` : ""}">
-    <rect x="2" y="2" width="${W - 4}" height="276" rx="12" fill="rgba(255,255,255,.03)" stroke="rgba(255,255,255,.7)" stroke-width="1.2"/>
-    ${aisles}
-    ${inStock ? `<path class="draw" d="M 46 236 L 46 214 L ${px} 214 L ${px} 172" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-dasharray="300" stroke-dashoffset="300"/>
-      <circle cx="${px}" cy="166" r="7" fill="#3CCB6E" class="pulse"/><circle cx="${px}" cy="166" r="6" fill="#3CCB6E" stroke="#fff" stroke-width="1.5"/>` : ""}
-    <circle cx="46" cy="240" r="7" fill="#4C8DFF" stroke="#fff" stroke-width="1.5"/>
-    <text x="60" y="244" fill="#fff" font-size="12" font-family="Jost">You · entrance</text>
-  </svg>`;
-  $("aisle").innerHTML = inStock ? `Aisle ${A}<small>${AISLES[A - 1]}</small>` : `Not in<br>this shop`;
-  $("shelf").textContent = inStock ? `${p.n} · ${p.shelf}` : `${p.n} is at ${SHOPS.filter((x) => p.shops.includes(x.id)).map((x) => x.s).join(", ")}.`;
-  const next = st.list[st.list.indexOf(k) + 1];
-  $("floorActs").innerHTML = (inStock ? "" : `<button class="act solid" data-go="map">See other shops</button>`) +
-    (next ? `<button class="act ${inStock ? "solid" : ""}" data-next="${next}">Next on your list: ${next}</button>` : "") +
-    `<button class="act" data-tolist="1">Back to your list</button>`;
+  setTimeout(() => fillRing($("bigRing"), 1400), 250);
 }
+$("closeDone").onclick = () => { hist.length = 1; show("lists", false); };
+$("again").onclick = () => {
+  const l = curList();
+  st.lists.unshift({ id: "n" + Date.now(), t: l.t, w: [...words(l)], when: "Next week" });
+  hist.length = 1; show("lists", false);
+};
 
-// ===================== Clicks =====================
-document.addEventListener("click", (e) => {
-  const t = e.target.closest("button"); if (!t) return;
-  if (t.hasAttribute("data-back")) return back();
-  if (t.dataset.goal) { st.goal = t.dataset.goal; return show("list"); }
-  if (t.dataset.chip) return pick({ k: t.dataset.chip });
-  if (t.dataset.gchip) {
-    const k = st.open, prev = k ? ranked(k) : null; st.goal = t.dataset.gchip; renderList(); if (k) animateShelf(k, prev); return;
-  }
-  if (t.dataset.cat) { const k = t.dataset.cat; st.open = st.open === k ? null : k; renderList(); if (st.open) animateShelf(k); return; }
-  if (t.dataset.rm) { st.list = st.list.filter((k) => k !== t.dataset.rm); if (st.open === t.dataset.rm) st.open = null; return renderList(); }
-  if (t.dataset.prod) { const [k, n] = t.dataset.prod.split("|"); st.prod = DATA[k].items.find((p) => p.n === n); return show("product"); }
-  if (t.dataset.shop) return chooseShop(t.dataset.shop);
-  if (t.dataset.next) { st.open = t.dataset.next; while (hist.length > 1 && hist[hist.length - 1] !== "list") hist.pop(); show("list", false); animateShelf(st.open); return; }
-  if (t.dataset.tolist) { while (hist.length > 1 && hist[hist.length - 1] !== "list") hist.pop(); return show("list", false); }
-  if (t.dataset.go) return show(t.dataset.go);
-  if (t.id === "verify") { t.textContent = "Checking…"; t.disabled = true; setTimeout(() => { t.textContent = "✓ Valid"; }, 700); }
-});
-
-// ===================== Auto-play demo (#demo, key D, or message "demo") =====================
-let playing = false;
-const PACE = 1.08; // demo speed: higher = slower
+// ===================== Demo =====================
+// D (or "Play demo"): plays by itself, about 70 s.
+// → / PageDown / N (or a presentation clicker): one step at a time, at the presenter's pace.
+const PACE = 1.0; // higher = slower
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms * PACE));
 const tapEl = document.createElement("div"); tapEl.className = "tap"; document.body.appendChild(tapEl);
-const capEl = document.createElement("div"); capEl.className = "cap"; document.body.appendChild(capEl);
-// Captions are off: the presenter explains each step. The pause keeps the pace.
-const SHOW_CAPTIONS = false;
-async function cap(n, text) { if (SHOW_CAPTIONS) { capEl.classList.remove("on"); await sleep(250); capEl.innerHTML = (n ? `<b>${n}</b>` : "") + text; capEl.classList.add("on"); await sleep(900); } else await sleep(1150); }
-const outro = document.createElement("div"); outro.className = "outro"; outro.innerHTML = "<div>Right to<br>the point.</div>"; document.body.appendChild(outro);
-async function tap(el) {
-  if (!el) return;
-  el.scrollIntoView({ block: "nearest", behavior: "smooth" }); await sleep(450);
+const outro = document.createElement("div"); outro.className = "outro"; outro.innerHTML = `<div><span class="wm">P<i></i>int</span><p>Right to the point.</p></div>`; document.body.appendChild(outro);
+async function tap(el, hold = 700) {
+  if (!el) throw new Error("demo: element missing");
+  el.scrollIntoView({ block: "nearest", behavior: "smooth" }); await sleep(400);
   const r = el.getBoundingClientRect();
   tapEl.style.left = r.left + r.width / 2 + "px"; tapEl.style.top = r.top + r.height / 2 + "px"; tapEl.style.opacity = 1;
-  await sleep(800); tapEl.classList.remove("down"); void tapEl.offsetWidth; tapEl.classList.add("down");
-  await sleep(300); if (el.tagName === "INPUT") el.focus(); else el.click(); await sleep(150); tapEl.style.opacity = 0;
+  await sleep(hold); tapEl.classList.remove("down"); void tapEl.offsetWidth; tapEl.classList.add("down");
+  await sleep(240); if (el.tagName === "INPUT") el.focus(); else el.click(); await sleep(120); tapEl.style.opacity = 0;
 }
-async function type(el, text) { for (const c of text) { el.value += c; el.dispatchEvent(new Event("input")); await sleep(240); } await sleep(700); }
+async function type(el, text, per) { el.focus(); for (const c of text) { el.value += c; el.dispatchEvent(new Event("input")); await sleep(per); } }
+const enter = (el) => el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+const lastLine = () => [...document.querySelectorAll("#lines input")].pop();
+const q = (sel) => document.querySelector(sel);
+function resetDemo() {
+  closeSheets(); outro.classList.remove("on"); st.shop = "nm"; st.pick = {}; $("lq").value = "";
+  st.lists = st.lists.filter((l) => l.id === "f" || l.id === "l"); st.lists.forEach((l) => l.id === "f" && (l.shopped = false));
+  hist.length = 1; show("lists", false);
+}
+// Each step ends on a screen worth talking about. The pause after it is the auto-play dwell.
+const STEPS = [
+  { t: "Write the list, as in Notes", dwell: 1800, run: async () => {
+    await tap($("compose"));
+    await sleep(450); await type($("titleIn"), "Weekly shop", 80); await sleep(250); enter($("titleIn")); await sleep(300);
+    for (const w of ["pasta", "oranges", "apples", "milk", "coffee", "olive oil"]) { await type(lastLine(), w, 105); await sleep(260); if (w !== "olive oil") enter(lastLine()); }
+  } },
+  { t: "Done: one answer under every word", dwell: 3800, run: async () => { await tap($("modeBtn")); } },
+  { t: "Tap pasta: product, score, place in the shop", dwell: 4000, run: async () => { await tap(q('.ihead[data-i="0"]')); } },
+  { t: "Other pastas, ranked by Km 0: pick the Swiss one", dwell: 2600, run: async () => {
+    await tap(q("[data-others]")); await sleep(1600);
+    await tap(q('[data-goal="transport"]')); await sleep(2400);
+    await tap(q('.opt[data-n="Tagliatelle, Swiss spelt"]')); // Point recommends, you decide; the sheet closes itself
+  } },
+  { t: "The proof, honest about your choice", dwell: 2800, run: async () => {
+    await tap(q("[data-proof]")); await sleep(3800);
+    $("proof").scrollTo({ top: 900, behavior: "smooth" }); await sleep(600);
+  } },
+  { t: "Olive oil: nothing verified here", dwell: 2600, run: async () => {
+    await tap(q("#proof [data-close]"), 450); await sleep(600);
+    await tap(q('.ihead[data-i="5"]'));
+  } },
+  { t: "Shops nearby that have it", dwell: 4400, run: async () => { await tap(q("[data-where]")); } },
+  { t: "In the shop, the list becomes the route", dwell: 3000, run: async () => {
+    await tap(q("#shops [data-back]"), 450); await sleep(800);
+    await tap($("startBtn"));
+  } },
+  { t: "Tick off, like a checklist", dwell: 6000, run: async () => {
+    for (const w of ["oranges", "apples", "milk", "coffee", "pasta", "olive oil"]) { await tap(q(`[data-w="${w}"]`), 330); await sleep(320); }
+    await sleep(1000); // "Shop done" opens by itself after the last tick
+  } },
+  { t: "Right to the point.", dwell: 3000, run: async () => { outro.classList.add("on"); } },
+];
+let stepIdx = 0;
+function report(i) { try { parent.postMessage({ point: "step", i, n: STEPS.length, t: i > 0 ? STEPS[i - 1].t : "" }, "*"); } catch (e) {} }
 async function demo() {
-  if (playing) return; playing = true; outro.classList.remove("on");
-  Object.assign(st, { goal: "plastic", list: ["oranges", "tomatoes", "milk"], open: null, shop: "mp" });
-  hist.length = 1; show("home", false); $("q").value = ""; await sleep(900);
-  const q = $("q");
-  await cap(1, "Search what you need"); await tap(q); await type(q, "pasta");
-  await tap(document.querySelector("#home .sugg button"));
-  await cap(2, "Point ranks every pasta on the shelf for your goal: less plastic"); await sleep(4200);
-  await cap(3, "Change the goal to Km 0: the Swiss pasta wins"); await tap(document.querySelector('[data-gchip="km0"]')); await sleep(3800);
-  await cap(0, "Back to less plastic"); await tap(document.querySelector('[data-gchip="plastic"]')); await sleep(3000);
-  await cap(4, "Why this score: six dimensions"); await tap(document.querySelector(".group.open .opt.pick")); await sleep(3800);
-  await cap(5, "Anyone can check the score"); await tap($("verify")); await sleep(2600);
-  await cap(6, "Which shops nearby have it"); await tap(document.querySelector('#product [data-go="map"]')); await sleep(4500);
-  await cap(7, "Pick a shop: Point shows the aisle"); await tap(document.querySelector('#shops [data-shop="mp"]')); await sleep(4500);
-  capEl.classList.remove("on");
-  outro.classList.add("on"); await sleep(3000); outro.classList.remove("on");
-  playing = false;
+  if (playing) return; playing = true; const t0 = Date.now();
+  try {
+    resetDemo(); stepIdx = 0; report(0); await sleep(1000);
+    for (const [i, s] of STEPS.entries()) { await s.run(); report(i + 1); await sleep(s.dwell); }
+    console.log("[Point] demo took " + ((Date.now() - t0) / 1000).toFixed(1) + " s");
+  } catch (err) { console.warn("[Point]", err); }
+  finally { outro.classList.remove("on"); playing = false; queued = false; stepIdx = 0; report(0); }
 }
-addEventListener("keydown", (e) => { if ((e.key === "d" || e.key === "D") && !(document.activeElement && document.activeElement.tagName === "INPUT")) demo(); });
-addEventListener("message", (e) => { if (e.data === "demo") demo(); });
+let queued = false;
+async function step() {
+  if (playing) { queued = true; return; } // one early press is kept, not lost
+  playing = true;
+  try {
+    if (stepIdx === 0) { resetDemo(); await sleep(400); }
+    await STEPS[stepIdx].run(); stepIdx++; report(stepIdx);
+    if (stepIdx === STEPS.length) { await sleep(STEPS[stepIdx - 1].dwell); outro.classList.remove("on"); stepIdx = 0; report(0); }
+  } catch (err) { console.warn("[Point]", err); stepIdx = 0; report(0); }
+  finally { playing = false; if (queued) { queued = false; setTimeout(step, 300); } }
+}
+addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeSheets();
+  const typing = document.activeElement && document.activeElement.tagName === "INPUT";
+  const stepKey = e.key === "ArrowRight" || e.key === "PageDown" || ((e.key === "n" || e.key === "N") && !typing);
+  if (stepKey && (!typing || stepIdx > 0 || playing)) { e.preventDefault(); step(); }
+  if ((e.key === "d" || e.key === "D") && !typing) demo();
+});
+addEventListener("message", (e) => { if (e.data === "demo") demo(); if (e.data === "step") step(); });
 
 // ===================== Start =====================
-renderHome();
+setShopNames(); renderLists();
 (function () {
   const h = location.hash.slice(1); if (!h) return;
   if (h === "demo") { setTimeout(demo, 800); return; }
-  st.prod = DATA.pasta.items[0]; st.open = "pasta";
-  ({ list: ["list"], product: ["list", "product"], map: ["list", "product", "map"], floor: ["list", "product", "floor"], profile: ["profile"] }[h] || []).forEach((id) => show(id));
+  if (!["list", "write", "card", "others", "proof", "shops", "shop", "done"].includes(h)) return;
+  openList("w", h === "write" ? "write" : "done");
+  if (["card", "others", "proof"].includes(h)) { st.open = 0; renderNote(); }
+  if (h === "others") openOthers("pasta");
+  if (h === "proof") openProof("pasta");
+  if (h === "shops") show("shops");
+  if (h === "shop") startShopping();
+  if (h === "done") { startShopping(); words(curList()).forEach((w, i) => st.ticked.add(i)); finish(); }
 })();
 </script>
 </body>
