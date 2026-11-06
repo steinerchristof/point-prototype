@@ -255,6 +255,86 @@
   .outro.on { opacity: 1; }
   .outro .wm { font-size: 58px; }
   .outro p { font-size: 18px; color: rgba(255,255,255,.82); margin: 10px 0 0; }
+  /* family: one list, every phone */
+  .av { width: 22px; height: 22px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 10.5px; font-weight: 700; font-style: normal; color: #fff; flex: none; border: 2px solid var(--card); line-height: 1; }
+  .av.sm { width: 16px; height: 16px; font-size: 8.5px; border-width: 1.5px; }
+  .av.lg { width: 38px; height: 38px; font-size: 15px; border: 0; }
+  .avs { display: inline-flex; align-items: center; }
+  .avs .av + .av { margin-left: -7px; }
+  .lrow .fam { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; color: var(--ink3); font-weight: 600; }
+  .lrow .fam .av { width: 17px; height: 17px; font-size: 8.5px; border-width: 1.5px; }
+  .lrow .fam .av + .av { margin-left: -6px; }
+  .pill .avs .av { width: 20px; height: 20px; font-size: 9.5px; }
+  .pill .share { width: 14px; height: 14px; stroke: var(--blue); fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .by { display: inline-flex; align-items: center; gap: 4px; vertical-align: -3px; }
+  .item.new { animation: glow 2.4s ease; }
+  @keyframes glow { 0%, 35% { background: var(--blue-soft); } 100% { background: transparent; } }
+  .tick.new { animation: glow 2.4s ease; }
+  .mrow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .mrow .tx { flex: 1; min-width: 0; }
+  .mrow b { display: block; font-size: 15px; }
+  .mrow small { display: block; font-size: 12.5px; color: var(--ink2); }
+  .mrow .live { font-size: 12px; font-weight: 600; color: var(--blue); display: inline-flex; align-items: center; gap: 5px; }
+  .mrow .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #2BB673; }
+  .sw { width: 42px; height: 26px; border-radius: 13px; background: #C9D0DB; position: relative; flex: none; transition: background .2s; }
+  .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .2s; }
+  .sw.on { background: var(--blue); }
+  .sw.on::after { transform: translateX(16px); }
+  .feed { margin-top: 4px; }
+  .frow { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 13.5px; color: var(--ink2); }
+  .frow b { color: var(--ink); font-weight: 600; }
+  .frow small { margin-left: auto; color: var(--ink3); font-size: 12px; white-space: nowrap; }
+  .lab2 { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink3); font-weight: 700; margin: 16px 0 2px; }
+  .toast { position: fixed; left: 12px; right: 12px; top: calc(var(--top) + 6px); display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 16px; background: rgba(11,18,32,.94); color: #fff; font-size: 13.5px; line-height: 1.35; box-shadow: 0 10px 30px rgba(6,11,36,.35); transform: translateY(calc(-100% - var(--top) - 20px)); transition: transform .45s cubic-bezier(.2,.8,.2,1); z-index: 40; pointer-events: none; }
+  .toast.on { transform: none; }
+  .toast .av { border-color: rgba(255,255,255,.9); }
+  .toast small { display: block; color: rgba(255,255,255,.72); font-size: 12px; }
+
+  /* scan: barcode mid-shopping */
+  .navr { display: flex; align-items: center; gap: 16px; }
+  .navbtn .bc { width: 20px; height: 20px; stroke-width: 1.9; }
+  .scanbar { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; margin: 12px 0 2px; padding: 11px 14px; border-radius: 14px; background: var(--mid); color: #fff; }
+  .scanbar svg { width: 26px; height: 26px; stroke: #8FD8FF; fill: none; stroke-width: 1.8; stroke-linecap: round; flex: none; }
+  .scanbar b { display: block; font-size: 14.5px; }
+  .scanbar small { display: block; font-size: 12px; color: rgba(255,255,255,.75); }
+  .cam { position: relative; height: 300px; border-radius: 18px; overflow: hidden; margin: 4px 0 12px; background: #0A0F24 url(img/shelf.jpg) center/cover; }
+  .cam::before { content: ""; position: absolute; inset: 0; background: rgba(6,11,36,.55); }
+  .vf { position: absolute; left: 14%; right: 14%; top: 30%; height: 40%; border-radius: 14px; }
+  .vf i { position: absolute; width: 26px; height: 26px; border: 3px solid #fff; }
+  .vf i:nth-child(1) { top: 0; left: 0; border-right: 0; border-bottom: 0; border-radius: 12px 0 0 0; }
+  .vf i:nth-child(2) { top: 0; right: 0; border-left: 0; border-bottom: 0; border-radius: 0 12px 0 0; }
+  .vf i:nth-child(3) { bottom: 0; left: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 12px; }
+  .vf i:nth-child(4) { bottom: 0; right: 0; border-left: 0; border-top: 0; border-radius: 0 0 12px 0; }
+  .vf .line { position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; border-radius: 1px; background: #5CC8F0; box-shadow: 0 0 12px 2px rgba(92,200,240,.8); animation: sweep 1.6s ease-in-out infinite; }
+  @keyframes sweep { 0%, 100% { transform: translateY(-38px); } 50% { transform: translateY(38px); } }
+  .vf .code { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(.9); width: 62%; height: 52%; background: #fff; border-radius: 6px; padding: 8px 10px 4px; opacity: 0; transition: opacity .25s, transform .25s; display: flex; flex-direction: column; }
+  .vf .code span { flex: 1; background: repeating-linear-gradient(90deg, #0B1220 0 2px, #fff 2px 3px, #0B1220 3px 4px, #fff 4px 7px, #0B1220 7px 10px, #fff 10px 11px); }
+  .vf .code small { font: 600 9px/1.6 ui-monospace, Menlo, monospace; color: #0B1220; text-align: center; letter-spacing: .08em; }
+  .cam.aim .vf .code { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .cam.hit .vf i { border-color: #5CC8F0; }
+  .cam.hit .vf .line { animation: none; opacity: 0; }
+  .cam.hit::after { content: ""; position: absolute; inset: 0; background: #fff; animation: flash .45s ease-out forwards; }
+  @keyframes flash { from { opacity: .55; } to { opacity: 0; } }
+  .camtx { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font-size: 13.5px; font-weight: 600; color: #fff; padding: 0 16px; }
+  .camtx small { display: block; font-weight: 500; color: rgba(255,255,255,.75); font-size: 12px; margin-top: 2px; }
+  .infront { font-size: 12px; color: rgba(255,255,255,.72); margin: 0 0 8px; }
+  .scanchips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .scanchip { height: 36px; padding: 0 14px; border-radius: 18px; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.28); color: #fff; font-size: 13.5px; font-weight: 600; }
+  .scanchip:active, .scanchip.on { background: rgba(92,200,240,.25); border-color: #8FD8FF; }
+  .ean { font: 500 11px ui-monospace, Menlo, monospace; color: var(--ink3); letter-spacing: .06em; }
+  .rank { background: #F2F5FA; border-radius: 14px; padding: 12px 14px; margin: 12px 0 4px; }
+  .rank h3 { margin: 0; font-size: 17px; line-height: 1.25; }
+  .rank h3 em { font-style: normal; color: var(--violet); }
+  .rank p { margin: 2px 0 10px; font-size: 12.5px; color: var(--ink2); }
+  .strip { display: flex; gap: 4px; }
+  .strip span { flex: 1; height: 26px; border-radius: 6px; background: #DCE2EC; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #7A8799; font-variant-numeric: tabular-nums; transform-origin: bottom; animation: rise .5s cubic-bezier(.2,.8,.2,1) both; }
+  .strip span.best { background: var(--blue); color: #fff; }
+  .strip span.me { background: var(--violet); color: #fff; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--violet); }
+  @keyframes rise { from { opacity: 0; transform: scaleY(.3); } }
+  .strip-l { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink3); margin-top: 6px; }
+  .btn:disabled { opacity: .45; box-shadow: none; }
+  .opt .add { flex: none; height: 32px; padding: 0 12px; border-radius: 16px; background: var(--blue-soft); color: var(--blue); font-size: 13px; font-weight: 700; }
+  .opt .tx i { display: block; font-style: normal; font-size: 12px; color: var(--ink3); }
   @media (max-width: 340px) { :root { --pad: 16px; } h1 { font-size: 27px; } .twobtn { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -288,9 +368,10 @@
 
 <!-- 4 · In the shop -->
 <section class="screen" id="shop">
-  <div class="nav"><button class="navbtn" data-back><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span id="shopBack"></span></button><button class="navbtn" id="endBtn">End</button></div>
+  <div class="nav"><button class="navbtn" data-back><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span id="shopBack"></span></button><div class="navr"><button class="navbtn" id="scanBtn" aria-label="Scan a barcode"><svg class="bc" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M10 8v8M13 8v8M17 8v8"/></svg>Scan</button><button class="navbtn" id="endBtn">End</button></div></div>
   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h1 style="margin-bottom:6px">In the shop</h1><span class="chip" id="tickCount"></span></div>
   <div class="plan" id="routePlan"></div>
+  <button class="scanbar" id="scanBar"><svg viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M10 8v8M13 8v8M17 8v8"/></svg><div><b>Saw something? Scan its barcode</b><small>Point shows where it ranks on this shelf, and the best one here</small></div></button>
   <div class="next" id="nextUp"></div>
   <div id="route"></div>
 </section>
@@ -321,6 +402,23 @@
   <div class="grab"></div>
   <div class="shead"><span></span><button class="x" data-close>Close</button></div>
   <div id="proofBody"></div>
+</div>
+<div class="sheet" id="family" role="dialog" aria-label="Share this list with your family">
+  <div class="grab"></div>
+  <div class="shead"><h2 id="fTitle"></h2><button class="x" data-close>Done</button></div>
+  <div id="fBody"></div>
+</div>
+<div class="sheet dark" id="scan" role="dialog" aria-label="Scan a barcode">
+  <div class="grab"></div>
+  <div class="shead"><h2>Scan a barcode</h2><button class="x" data-close>Cancel</button></div>
+  <div class="cam" id="cam"><div class="vf"><i></i><i></i><i></i><i></i><div class="code"><span></span><small id="camEan"></small></div><div class="line"></div></div><div class="camtx" id="camTx"></div></div>
+  <p class="infront">Simulated camera in this prototype. Tap what is in front of you:</p>
+  <div class="scanchips" id="scanChips"></div>
+</div>
+<div class="sheet" id="scanres" role="dialog" aria-label="Scanned product">
+  <div class="grab"></div>
+  <div class="shead"><h2 id="srTitle">Scanned</h2><button class="x" data-close>Done</button></div>
+  <div id="srBody"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -383,6 +481,22 @@ const DATA = {
     { b: "Olio Sereno", n: "Extra virgin, organic", img: null, pk: "500 ml, glass", pr: 9.80, d: { energy: 80, water: 62, pack: 85, transport: 60 }, why: [["Packaging", "glass, recyclable"], ["Energy", "solar-powered mill"], ["Transport", "1,100 km, by rail"]], h: "eye level", shops: ["sf", "si"] },
     { b: "Oliva d'Oro", n: "Extra virgin olive oil", img: null, pk: "1 l, plastic", pr: 7.50, d: null, h: "bottom shelf", shops: ALL },
   ]},
+  yoghurt: { sect: "dairy", spot: "fridge 2", items: [
+    { b: "Alpe Säntis", n: "Natural yoghurt, glass jar", img: null, pk: "500 g", pr: 2.40, d: { energy: 78, water: 70, pack: 92, transport: 92 }, why: [["Transport", "30 km, Appenzell farms"], ["Packaging", "returnable glass jar"], ["Energy", "78% renewable"]], h: "middle shelf", shops: ALL },
+    { b: "Cremosa", n: "Greek-style yoghurt", img: null, pk: "4 × 125 g, plastic", pr: 3.20, d: { energy: 66, water: 58, pack: 42, transport: 50 }, why: [["Packaging", "four plastic pots"], ["Transport", "1,200 km, by truck"], ["Water", "irrigated feed"]], h: "bottom shelf", shops: ALL },
+  ]},
+  // Nine jars on one shelf: the barcode scan shows where each one ranks.
+  olives: { sect: "stand2", spot: "jars", items: [
+    { b: "Taggiasca Viva", n: "Taggiasca olives, organic", img: null, pk: "180 g, glass", pr: 6.90, d: { energy: 90, water: 84, pack: 88, transport: 88 }, why: [["Transport", "900 km, by rail"], ["Packaging", "glass jar, recyclable"], ["Water", "rain-fed groves"]], h: "eye level", shops: ALL },
+    { b: "Gaia", n: "Kalamata olives", img: null, pk: "200 g, glass", pr: 5.40, d: { energy: 86, water: 80, pack: 88, transport: 78 }, why: [["Energy", "solar-powered brining"], ["Packaging", "glass jar"], ["Transport", "1,900 km, by ship and rail"]], h: "eye level", shops: ALL },
+    { b: "Uliveto Sardo", n: "Green olives, Sardinia", img: null, pk: "200 g, glass", pr: 4.95, d: { energy: 80, water: 76, pack: 86, transport: 74 }, why: [["Packaging", "glass jar"], ["Water", "rain-fed groves"], ["Transport", "1,100 km, by ferry and rail"]], h: "top shelf", shops: ALL },
+    { b: "Oliva Nostra", n: "Black olives, pitted", img: null, pk: "200 g, glass", pr: 3.90, d: { energy: 74, water: 70, pack: 80, transport: 64 }, why: [["Packaging", "glass jar"], ["Transport", "1,400 km, by truck"], ["Energy", "74% renewable"]], h: "top shelf", shops: ALL },
+    { b: "Bella Puglia", n: "Green olives in brine", img: null, pk: "290 g, glass", pr: 3.50, d: { energy: 66, water: 58, pack: 78, transport: 54 }, why: [["Water", "irrigated groves, dry region"], ["Transport", "1,300 km, by truck"], ["Packaging", "glass jar"]], h: "eye level", shops: ALL, ean: "8 008560 004 127" },
+    { b: "Sol Andaluz", n: "Manzanilla olives", img: null, pk: "350 g, glass", pr: 3.20, d: { energy: 62, water: 44, pack: 76, transport: 50 }, why: [["Water", "heavily irrigated"], ["Transport", "1,800 km, by truck"], ["Packaging", "glass jar"]], h: "bottom shelf", shops: ALL },
+    { b: "Mar Azul", n: "Stuffed olives, anchovy", img: null, pk: "120 g, can", pr: 2.60, d: { energy: 56, water: 48, pack: 52, transport: 48 }, why: [["Packaging", "tin can"], ["Transport", "1,900 km, by truck"], ["Water", "irrigated groves"]], h: "bottom shelf", shops: ALL },
+    { b: "Delta Verde", n: "Black olives, sliced", img: null, pk: "150 g, can", pr: 1.95, d: { energy: 48, water: 44, pack: 48, transport: 40 }, why: [["Energy", "oxidised with heat"], ["Packaging", "tin can"], ["Transport", "by ship, from Egypt"]], h: "bottom shelf", shops: ALL },
+    { b: "Olivio", n: "Olives in brine, pot", img: null, pk: "300 g, plastic", pr: 2.20, d: { energy: 44, water: 40, pack: 30, transport: 42 }, why: [["Packaging", "plastic pot and lid"], ["Transport", "by ship, from Morocco"], ["Water", "irrigated groves"]], h: "chilled shelf", shops: ALL },
+  ]},
 };
 const SYN = {
   pasta: ["pasta", "spaghetti", "penne", "tagliatelle", "noodles", "nudeln", "teigwaren", "pates", "fusilli"],
@@ -392,8 +506,22 @@ const SYN = {
   coffee: ["coffee", "kaffee", "caffe", "cafe", "espresso", "coffee beans"],
   tomatoes: ["tomatoes", "tomato", "tomaten", "pomodori", "tomates"],
   "olive oil": ["olive oil", "oil", "olivenoel", "olivenol", "olio", "huile d'olive"],
+  yoghurt: ["yoghurt", "yogurt", "joghurt", "jogurt", "yaourt", "yogurt naturale"],
+  olives: ["olives", "olive", "oliven", "olive verdi", "olive nere", "olives vertes"],
 };
 const USUAL = 74; // illustrative: average score of this user's usual basket
+// The family that shares a list. Everyone can add, pick and tick; changes appear on every phone at once.
+const FAM = {
+  me: { n: "Elisa", c: "#1F6BFF", r: "you" },
+  ma: { n: "Marco", c: "#7B5CFF", r: "partner" },
+  so: { n: "Sofia", c: "#2A9FD8", r: "daughter, 15" },
+};
+// Barcodes a visitor can "scan" with the simulated camera.
+const SCANNABLE = [
+  { label: "Olives jar", cat: "olives", n: "Green olives in brine" },
+  { label: "Penne pack", cat: "pasta", n: "Penne rigate", ean: "8 004690 052 044" },
+  { label: "Instant coffee", cat: "coffee", n: "Instant coffee", ean: "7 613035 974 210" },
+];
 
 // ===================== State and helpers =====================
 const $ = (id) => document.getElementById(id);
@@ -407,7 +535,7 @@ const st = {
   shop: "nm", cur: null, mode: "done", open: null, goal: "all", ticked: new Set(), started: 0, animRoute: false,
   lists: [
     { id: "w", t: "Weekly shop", w: ["pasta", "oranges", "apples", "milk", "coffee", "olive oil"], when: "Today" },
-    { id: "f", t: "Friday dinner", w: ["pasta", "tomatoes", "olive oil"], when: "Today" },
+    { id: "f", t: "Friday dinner", w: ["pasta", "tomatoes", "olive oil"], when: "Today", share: ["ma", "so"], by: { tomatoes: "ma" }, log: [{ m: "ma", t: "added tomatoes", at: Date.now() - 42 * 60000 }] },
     { id: "l", t: "Last week", w: ["apples", "milk", "tomatoes", "coffee"], when: "30.10.", shopped: true, prev: true },
   ],
   pick: {}, // "listId:category" -> chosen product name
@@ -462,6 +590,111 @@ const check = `<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
 const chev = `<svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>`;
 function setShopNames() { document.querySelectorAll(".shopname").forEach((b) => (b.textContent = shop().n)); }
 
+// ===================== Family: one list, every phone =====================
+const av = (m, cls = "") => `<i class="av ${cls}" style="background:${FAM[m].c}" title="${FAM[m].n}">${FAM[m].n[0]}</i>`;
+const avs = (ms, cls = "") => `<span class="avs">${ms.map((m) => av(m, cls)).join("")}</span>`;
+const fam = (l) => (l && l.share && l.share.length ? ["me", ...l.share] : null);
+const byOf = (l, w) => (l && l.by && l.by[norm(w)]) || "me";
+const names = (ms) => ms.map((m) => FAM[m].n).join(" and ");
+const shareIcon = `<svg class="share" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><path d="M18 8v6M15 11h6"/></svg>`;
+function ago(t) { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.round(m / 60) + " h ago"; }
+function logIt(l, m, t) { (l.log = l.log || []).unshift({ m, t, at: Date.now() }); }
+const toastEl = document.createElement("div"); toastEl.className = "toast"; toastEl.setAttribute("role", "status"); document.body.appendChild(toastEl);
+function toast(html, ms = 3400) { toastEl.innerHTML = html; toastEl.classList.add("on"); clearTimeout(toastEl._t); toastEl._t = setTimeout(() => toastEl.classList.remove("on"), ms); }
+let flashWord = null; // the item that just arrived glows once
+function refresh() {
+  const on = document.querySelector(".screen.on"); if (!on) return;
+  const y = on.scrollTop, r = { lists: renderLists, note: renderNote, shop: renderShop }[on.id];
+  if (r) { r(); on.scrollTop = y; }
+  const fresh = flashWord && on.querySelector(".item.new, .tick.new"); // the new item scrolls into view
+  if (fresh) setTimeout(() => fresh.scrollIntoView({ block: "center", behavior: "smooth" }), 120);
+  flashWord = null;
+}
+// Someone else in the family adds a word from their phone: it appears here at once.
+function familyAdd(id, m, word) {
+  const l = st.lists.find((x) => x.id === id); if (!l || words(l).some((w) => norm(w) === norm(word))) return;
+  if (st.cur === id && st.mode === "write" && $("note").classList.contains("on")) { setTimeout(() => familyAdd(id, m, word), 1500); return; }
+  l.w = [...words(l), word]; (l.by = l.by || {})[norm(word)] = m; logIt(l, m, "added " + word); flashWord = norm(word);
+  toast(`${av(m)}<div><b>${FAM[m].n}</b> added ${esc(word)}<small>${esc(l.t)} · from ${FAM[m].n}’s phone, just now</small></div>`);
+  refresh();
+}
+let fSel = new Set();
+function openFamily() {
+  const l = curList(); if (!l) return;
+  if (!fam(l)) {
+    $("fTitle").textContent = "Share “" + l.t + "”";
+    fSel = new Set(["ma", "so"]);
+    const draw = () => {
+      $("fBody").innerHTML = `<p class="sub">Everyone can add, pick and tick. Changes appear on every phone at once, also while someone is in the shop.</p>` +
+        Object.entries(FAM).filter(([k]) => k !== "me").map(([k, f]) => `<button class="mrow" data-m="${k}" style="width:100%;text-align:left" aria-pressed="${fSel.has(k)}">${av(k, "lg")}<div class="tx"><b>${f.n}</b><small>${f.r}</small></div><span class="sw${fSel.has(k) ? " on" : ""}"></span></button>`).join("") +
+        `<button class="btn primary" id="shareGo" style="width:100%;margin-top:14px" ${fSel.size ? "" : "disabled"}>${fSel.size ? "Share with " + names([...fSel]) : "Choose someone"}</button>`;
+      document.querySelectorAll("#fBody [data-m]").forEach((b) => (b.onclick = () => { fSel.has(b.dataset.m) ? fSel.delete(b.dataset.m) : fSel.add(b.dataset.m); draw(); }));
+      $("shareGo").onclick = () => fSel.size && shareList(l, [...fSel]);
+    };
+    draw();
+  } else {
+    $("fTitle").textContent = "Shared with family";
+    $("fBody").innerHTML = `<p class="sub">“${esc(l.t)}” is on ${fam(l).length} phones. Everyone can add, pick and tick.</p>` +
+      fam(l).map((k) => `<div class="mrow">${av(k, "lg")}<div class="tx"><b>${FAM[k].n}${k === "me" ? " (you)" : ""}</b><small>${k === "me" ? "started this list" : "can add, pick and tick"}</small></div>${k === "me" ? "" : `<span class="live">live</span>`}</div>`).join("") +
+      `<div class="lab2">Activity</div><div class="feed">${(l.log || []).slice(0, 6).map((e) => `<div class="frow">${av(e.m, "sm")}<span><b>${FAM[e.m].n}</b> ${esc(e.t)}</span><small>${ago(e.at)}</small></div>`).join("") || `<p class="sub">Nothing yet.</p>`}</div>`;
+  }
+  openSheet("family");
+}
+function shareList(l, ms) {
+  l.share = ms; l.by = l.by || {}; logIt(l, "me", "shared the list");
+  closeSheets(); refresh();
+  toast(`${avs(["me", ...ms])}<div>Shared with <b>${names(ms)}</b><small>They see “${esc(l.t)}” live on their phones</small></div>`);
+  // In this prototype Sofia answers from her phone, to show that her change arrives live.
+  if (ms.includes("so")) setTimeout(() => familyAdd(l.id, "so", "yoghurt"), 3400 * PACE);
+}
+
+// ===================== Scan: a barcode, mid-shopping =====================
+const ord = (n) => n + ([, "st", "nd", "rd"][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10] || "th");
+const eanOf = (p) => p.ean || (SCANNABLE.find((s) => s.n === p.n) || {}).ean || "";
+let scanTok = 0;
+function openScan() {
+  scanTok++; $("cam").className = "cam";
+  $("camTx").innerHTML = `Point the camera at a barcode<small>${esc(shop().n)}</small>`;
+  $("scanChips").innerHTML = SCANNABLE.map((s, i) => `<button class="scanchip" data-scan="${i}">${s.label}</button>`).join("");
+  document.querySelectorAll("[data-scan]").forEach((b) => (b.onclick = () => detect(+b.dataset.scan)));
+  openSheet("scan");
+}
+function detect(i) {
+  const s = SCANNABLE[i], p = DATA[s.cat].items.find((x) => x.n === s.n), tok = ++scanTok, cam = $("cam");
+  document.querySelectorAll("[data-scan]").forEach((b) => b.classList.toggle("on", +b.dataset.scan === i));
+  $("camEan").textContent = eanOf(p); cam.className = "cam aim";
+  $("camTx").innerHTML = `Reading the barcode…<small>${eanOf(p)}</small>`;
+  setTimeout(() => { if (tok !== scanTok) return; cam.className = "cam aim hit"; $("camTx").innerHTML = `${esc(p.b)} · ${esc(p.n)}<small>Found on this shelf</small>`; }, 900 * PACE);
+  setTimeout(() => { if (tok !== scanTok) return; closeSheets(); setTimeout(() => openScanResult(s.cat, p), 260); }, 1700 * PACE);
+}
+function openScanResult(cat, p) {
+  const list = ranked(cat), n = list.length, k = list.indexOf(p), s = score(p), sec = SECT[DATA[cat].sect];
+  const better = list.filter((x, i) => i < k && x.d).slice(0, 3);
+  const l = curList(), inList = l && words(l).some((w) => catOf(w) === cat), verb = inList ? "Pick" : "Add";
+  const row = (x) => `<div class="opt">${img(x)}<div class="tx"><b>${esc(x.b)} · ${esc(x.n)}</b><small>${x.pk} · ${chf(x.pr)}</small><i>${sec.t} · ${x.h}</i></div><span class="num" style="color:var(--blue)">${score(x)}</span><button class="add" data-add="${esc(x.n)}">${inList ? "Pick" : "+ Add"}</button></div>`;
+  $("srBody").innerHTML = `<div class="prod">${img(p)}<div class="tx"><div class="brand">${esc(p.b)}</div><div class="pname">${esc(p.n)}</div><div class="pmeta">${p.pk} · ${chf(p.pr)}</div><div class="ean">EAN ${eanOf(p)}</div></div><div><div class="sring">${sring(s, 58)}</div><span class="ver">Verified</span></div></div>
+    <div class="rank"><h3>${k === 0 ? `<em>The best</em> of ${n} ${esc(cat)} here` : `<em>${ord(k + 1)}</em> of ${n} ${esc(cat)} in this shop`}</h3>
+      <p>${k === 0 ? "Nothing on this shelf scores higher." : `${k} ${k === 1 ? "scores" : "score"} higher on the same shelf, ${sec.t}.`}</p>
+      <div class="strip">${list.map((x, i) => `<span class="${i === k ? "me" : i === 0 ? "best" : ""}" style="animation-delay:${i * 45}ms">${x.d ? score(x) : "–"}</span>`).join("")}</div>
+      <div class="strip-l"><span>best</span><span>${n} on this shelf</span></div></div>
+    ${better.length ? `<div class="lab2">Better on this shelf</div>${better.map(row).join("")}` : ""}
+    <div class="twobtn">${k === 0 ? `<button class="btn primary" style="grid-column:1/-1" data-add="${esc(p.n)}">${verb} it · ${s}</button>` : `<button class="btn soft" data-add="${esc(p.n)}">${verb} this one · ${s}</button><button class="btn primary" data-add="${esc(list[0].n)}">${verb} the best · ${score(list[0])}</button>`}</div>
+    <p class="note">${fam(l) ? `What you add appears on ${names(l.share)}’s phones at once. ` : ""}Illustrative data, not measured.</p>`;
+  document.querySelectorAll("#srBody [data-add]").forEach((b) => (b.onclick = () => addFromScan(cat, b.dataset.add)));
+  openSheet("scanres");
+  setTimeout(() => fillRing($("srBody").querySelector(".sring"), 900), 200);
+}
+function addFromScan(cat, name) {
+  const l = curList(); if (!l) return;
+  let w = words(l).find((x) => catOf(x) === cat); const isNew = !w;
+  if (isNew) { w = cat; l.w = [...words(l), w]; (l.by = l.by || {})[norm(w)] = "me"; }
+  const best = ranked(cat).find((p) => p.d), p = DATA[cat].items.find((x) => x.n === name);
+  if (best && best.n === name) delete st.pick[l.id + ":" + cat]; else st.pick[l.id + ":" + cat] = name;
+  logIt(l, "me", (isNew ? "added " : "picked ") + cat + ", by scanning");
+  flashWord = norm(w); closeSheets(); refresh();
+  toast(`${av("me")}<div>${isNew ? "Added" : "Picked"} <b>${esc(p.b)}</b> · ${score(p)}<small>${esc(l.t)}${fam(l) ? ` · ${names(l.share)} see it now` : ""}</small></div>`);
+}
+
 // Shop plan. hl = section to highlight; route = sections to stop at; done = sections finished.
 function planSVG({ hl = null, route = null, done = new Set() } = {}) {
   const f = (k) => (k === hl ? "#1F6BFF" : "#DCE2EC"), t = (k) => (k === hl ? "#fff" : "#5F6B7E");
@@ -509,7 +742,8 @@ function renderLists() {
   const match = (l) => !q || norm(l.t + " " + l.w.join(" ")).includes(q);
   const row = (l) => {
     const n = words(l).length, f = found(l, st.shop);
-    const stat = l.shopped ? `<span class="st grey">Shopped · ${n} items</span>` : n === 0 ? `<span class="st grey"><i class="ring looking"></i>Writing…</span>` : `<span class="st"><i class="ring"></i>${f} of ${n} found</span>`;
+    const fm = fam(l), famTag = fm ? `<span class="fam">${avs(fm)}Family</span>` : "";
+    const stat = (l.shopped ? `<span class="st grey">Shopped · ${n} items</span>` : n === 0 ? `<span class="st grey"><i class="ring looking"></i>Writing…</span>` : `<span class="st"><i class="ring"></i>${f} of ${n} found</span>`).replace(/<\/span>$/, famTag + "</span>");
     return `<button class="lrow" data-list="${l.id}"><div><b>${esc(l.t || "New list")}</b><small>${l.when} ${esc(words(l).join(", "))}</small>${stat}</div>${chev}</button>`;
   };
   const now = st.lists.filter((l) => !l.prev && match(l)), prev = st.lists.filter((l) => l.prev && match(l));
@@ -593,7 +827,7 @@ function renderDoneList(l) {
     return itemHTML(r, i);
   }).join("");
   $("noteBody").innerHTML = `<h1>${esc(l.t)}</h1>
-    <div class="meta"><button class="pill" data-shopbtn>${pin}<span class="shopname"></span></button><span class="chip">${f} of ${ws.length} found</span></div>
+    <div class="meta"><button class="pill" data-shopbtn>${pin}<span class="shopname"></span></button><span class="chip">${f} of ${ws.length} found</span><button class="pill" data-fam aria-label="${fam(l) ? "Family on this list" : "Share with family"}">${fam(l) ? avs(fam(l)) + "Family" : shareIcon + "Share"}</button></div>
     <div class="items">${rows || `<p class="whint">This list is empty. Tap Edit to write.</p>`}</div>
     ${l.shopped || !f ? "" : `<div class="go"><button class="btn primary" id="startBtn">Start shopping <span>≈ ${chf(total)}</span></button></div>`}
     <p class="note">Illustrative data, not measured. Point is not affiliated with Migros. Photos: <a href="https://github.com/steinerchristof/point-prototype/blob/main/CREDITS.md" target="_blank" rel="noopener" style="color:inherit">Wikimedia Commons</a>.</p>`;
@@ -602,22 +836,24 @@ function renderDoneList(l) {
   document.querySelectorAll("[data-others]").forEach((b) => (b.onclick = () => openOthers(b.dataset.others)));
   document.querySelectorAll("[data-proof]").forEach((b) => (b.onclick = () => openProof(b.dataset.proof)));
   document.querySelectorAll("[data-where]").forEach((b) => (b.onclick = (e) => { e.stopPropagation(); show("shops"); }));
+  document.querySelectorAll("#noteBody [data-fam]").forEach((b) => (b.onclick = openFamily));
   if ($("startBtn")) $("startBtn").onclick = startShopping;
   const card = document.querySelector(".card .sring"); if (card) fillRing(card, 900);
 }
 function itemHTML(r, i) {
-  const open = st.open === i;
-  const cls = st.open !== null && !open ? "item faded" : "item";
+  const open = st.open === i, l = curList(), by = byOf(l, r.word);
+  const cls = (st.open !== null && !open ? "item faded" : "item") + (flashWord === norm(r.word) ? " new" : "");
+  const byl = fam(l) && by !== "me" ? ` · <span class="by">${av(by, "sm")}added by ${FAM[by].n}</span>` : "";
   if (r.state === "unknown") return `<div class="${cls}"><button class="ihead" data-i="${i}"><div class="irow"><span class="word">${esc(r.word)}</span><i class="ring none"></i></div><div class="pickl">Point doesn’t know this product yet. It stays on your list.</div></button></div>`;
   if (r.state === "none") {
     const e = r.elsewhere[0], D = DATA[r.cat];
     return `<div class="${cls}"><button class="ihead" data-i="${i}"><div class="irow"><span class="word">${esc(r.word)}</span><i class="ring none"></i></div>
-      <div class="pickl">No verified ${esc(r.cat)} in this shop yet</div><div class="place">Point recommends nothing here. ${SECT[D.sect].t}, ${D.spot}.</div>
+      <div class="pickl">No verified ${esc(r.cat)} in this shop yet</div><div class="place">Point recommends nothing here. ${SECT[D.sect].t}, ${D.spot}.${byl}</div>
       ${open && e ? `<span class="elsewhere" data-where role="button">${pin} ${esc(e.n)} has a verified one ›</span>` : ""}</button></div>`;
   }
   const p = r.pick, s = score(p), sec = SECT[DATA[r.cat].sect];
   const head = `<button class="ihead" data-i="${i}"><div class="irow"><span class="word">${esc(r.word)}</span><span class="badge"><i class="ring"></i>${s}</span></div>
-    ${open ? "" : `<div class="pickl">${esc(p.b)} · ${esc(p.n)}${r.mine ? " · your choice" : ""}</div><div class="place">${sec.t}</div>`}</button>`;
+    ${open ? "" : `<div class="pickl">${esc(p.b)} · ${esc(p.n)}${r.mine ? " · your choice" : ""}</div><div class="place">${sec.t}${byl}</div>`}</button>`;
   if (!open) return `<div class="${cls}">${head}</div>`;
   const others = onShelf(r.cat).length - 1;
   return `<div class="${cls}">${head}<div class="card">
@@ -677,7 +913,7 @@ let proofTok = 0;
 function openProof(cat) {
   const r = resolve(cat2word(cat), st.cur), p = r.pick, s = score(p);
   const next = ranked(cat).filter((x) => x.d && x !== p)[0];
-  const kind = { pasta: "this pasta", oranges: "these oranges", apples: "these apples", milk: "this milk", coffee: "this coffee", tomatoes: "these tomatoes", "olive oil": "this oil" }[cat];
+  const kind = { pasta: "this pasta", oranges: "these oranges", apples: "these apples", milk: "this milk", coffee: "this coffee", tomatoes: "these tomatoes", "olive oil": "this oil", yoghurt: "this yoghurt", olives: "these olives" }[cat];
   $("proofBody").innerHTML = `<div class="phero"><div class="sring">${sring(s, 84, "rgba(255,255,255,.14)")}</div><div>
       <div class="kick">Why ${esc(kind)}</div><h3>${r.rank === 0 ? `Best of ${r.n} on this shelf` : `Number ${r.rank + 1} of ${r.n} on this shelf`}</h3>
       <p>${next ? `${r.rank === 0 ? "Next best" : "Best"}: ${score(next)} · ${esc(next.b)}` : "The only verified one here"}</p></div></div>
@@ -771,7 +1007,12 @@ function renderShop() {
   $("finish").onclick = finish;
   const rp = $("rp"); if (rp && st.animRoute) { st.animRoute = false; const len = rp.getTotalLength(); rp.style.strokeDasharray = len; rp.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: 1500, easing: "ease-out" }).onfinish = () => (rp.style.strokeDasharray = "4 4"); }
 }
-function tickHTML(x, sub, free) { const on = st.ticked.has(x.i); return `<button class="tick${on ? " on" : ""}${free ? " free" : ""}" data-tick="${x.i}" data-w="${esc(x.r.word)}" aria-pressed="${on}"><span class="c">${check}</span><div class="tx"><b>${esc(x.r.word)}</b><small>${sub}</small></div></button>`; }
+function tickHTML(x, sub, free) {
+  const on = st.ticked.has(x.i), l = curList(), by = byOf(l, x.r.word);
+  const byl = fam(l) && by !== "me" ? ` · <span class="by">${av(by, "sm")}${FAM[by].n}</span>` : "";
+  return `<button class="tick${on ? " on" : ""}${free ? " free" : ""}${flashWord === norm(x.r.word) ? " new" : ""}" data-tick="${x.i}" data-w="${esc(x.r.word)}" aria-pressed="${on}"><span class="c">${check}</span><div class="tx"><b>${esc(x.r.word)}</b><small>${sub}${byl}</small></div></button>`;
+}
+$("scanBtn").onclick = openScan; $("scanBar").onclick = openScan;
 function tick(i) { st.ticked.has(i) ? st.ticked.delete(i) : st.ticked.add(i); const y = $("shop").scrollTop; renderShop(); $("shop").scrollTop = y; if (st.ticked.size === shopItems().length) setTimeout(finish, 800); }
 $("endBtn").onclick = () => finish();
 function finish() { if ($("done").classList.contains("on") || !$("shop").classList.contains("on")) return; curList().shopped = true; show("done"); }
@@ -822,7 +1063,7 @@ const enter = (el) => el.dispatchEvent(new KeyboardEvent("keydown", { key: "Ente
 const lastLine = () => [...document.querySelectorAll("#lines input")].pop();
 const q = (sel) => document.querySelector(sel);
 function resetDemo() {
-  closeSheets(); outro.classList.remove("on"); st.shop = "nm"; st.pick = {}; $("lq").value = "";
+  closeSheets(); outro.classList.remove("on"); toastEl.classList.remove("on"); scanTok++; st.shop = "nm"; st.pick = {}; $("lq").value = "";
   st.lists = st.lists.filter((l) => l.id === "f" || l.id === "l"); st.lists.forEach((l) => l.id === "f" && (l.shopped = false));
   hist.length = 1; show("lists", false);
 }
@@ -834,6 +1075,10 @@ const STEPS = [
     for (const w of ["pasta", "oranges", "apples", "milk", "coffee", "olive oil"]) { await type(lastLine(), w, 105); await sleep(260); if (w !== "olive oil") enter(lastLine()); }
   } },
   { t: "Done: one answer under every word", dwell: 3800, run: async () => { await tap($("modeBtn")); } },
+  { t: "Share it with the family: Sofia adds yoghurt from her phone", dwell: 3600, run: async () => {
+    await tap(q("#noteBody [data-fam]")); await sleep(1300);
+    await tap($("shareGo")); await sleep(3700); // Sofia's yoghurt arrives live
+  } },
   { t: "Tap pasta: product, score, place in the shop", dwell: 4000, run: async () => { await tap(q('.ihead[data-i="0"]')); } },
   { t: "Other pastas, ranked by Km 0: pick the Swiss one", dwell: 2600, run: async () => {
     await tap(q("[data-others]")); await sleep(1600);
@@ -853,8 +1098,16 @@ const STEPS = [
     await tap(q("#shops [data-back]"), 450); await sleep(800);
     await tap($("startBtn"));
   } },
+  { t: "Saw olives on the way? Scan the barcode", dwell: 3800, run: async () => {
+    await tap($("scanBar")); await sleep(1100);
+    await tap(q('[data-scan="0"]')); await sleep(2400); // 5th of 9 olives in this shop
+  } },
+  { t: "Add the best olives here, the family sees it", dwell: 3000, run: async () => {
+    $("scanres").scrollTo({ top: 600, behavior: "smooth" }); await sleep(900);
+    await tap(q("#srBody .btn.primary")); await sleep(500);
+  } },
   { t: "Tick off, like a checklist", dwell: 6000, run: async () => {
-    for (const w of ["oranges", "apples", "milk", "coffee", "pasta", "olive oil"]) { await tap(q(`[data-w="${w}"]`), 330); await sleep(320); }
+    for (const w of ["oranges", "apples", "milk", "yoghurt", "coffee", "pasta", "olives", "olive oil"]) { await tap(q(`[data-w="${w}"]`), 330); await sleep(320); }
     await sleep(1000); // "Shop done" opens by itself after the last tick
   } },
   { t: "Right to the point.", dwell: 3000, run: async () => { outro.classList.add("on"); } },
@@ -895,8 +1148,10 @@ setShopNames(); renderLists();
 (function () {
   const h = location.hash.slice(1); if (!h) return;
   if (h === "demo") { setTimeout(demo, 800); return; }
-  if (!["list", "write", "card", "others", "proof", "shops", "shop", "done"].includes(h)) return;
+  if (!["list", "write", "card", "others", "proof", "shops", "shop", "done", "family", "scan", "scanned"].includes(h)) return;
   openList("w", h === "write" ? "write" : "done");
+  if (h === "family") openFamily();
+  if (h === "scan" || h === "scanned") { startShopping(); if (h === "scan") openScan(); else openScanResult("olives", DATA.olives.items[4]); }
   if (["card", "others", "proof"].includes(h)) { st.open = 0; renderNote(); }
   if (h === "others") openOthers("pasta");
   if (h === "proof") openProof("pasta");
