@@ -705,11 +705,18 @@ function renderShops() {
   const prev = hist[hist.length - 2];
   $("shopsBack").textContent = prev === "note" ? l.t : "Lists";
   const n = words(l).length;
-  $("shopsSub").textContent = `How much of “${l.t}” each shop has with a verified score. Tap a shop to switch.`;
+  $("shopsSub").textContent = `How much of “${l.t}” each shop has with a verified score. Tap a shop, on the map or below, to switch.`;
   const rows = SHOPS.map((s) => ({ s, f: found(l, s.id), d: km(ME, s.ll), b: basket(l, s.id) })).sort((a, b) => b.f - a.f || a.d - b.d);
   $("shopRows").innerHTML = rows.map(({ s, f, d, b }) => `<button class="srow${f === n ? " full" : ""}" data-pick="${s.id}"><div class="tx"><b>${s.n}${s.id === st.shop ? ' <span class="you">· your shop</span>' : ""}</b><small>${s.a} · ${d.toFixed(1)} km</small></div><div class="cnt">${f} of ${n} found<small>basket ${b ?? "–"}</small></div></button>`).join("");
-  document.querySelectorAll("[data-pick]").forEach((b) => (b.onclick = () => { st.shop = b.dataset.pick; st.open = null; setShopNames(); renderShops(); setTimeout(back, 450); }));
+  document.querySelectorAll("[data-pick]").forEach((b) => (b.onclick = () => pickShop(b.dataset.pick)));
   setTimeout(() => drawMap(l), 80);
+}
+// Pick a shop from the list or the map: it becomes your shop, then back to the list.
+let picking = false;
+function pickShop(id) {
+  if (picking) return; picking = true;
+  st.shop = id; st.open = null; setShopNames(); renderShops();
+  setTimeout(() => { picking = false; if ($("shops").classList.contains("on")) back(); }, 650);
 }
 function drawMap(l) {
   if (!window.L) { $("map").innerHTML = '<p class="note" style="padding:120px 20px">Map needs an internet connection.</p>'; return; }
@@ -723,8 +730,12 @@ function drawMap(l) {
   L.circleMarker(ME, { radius: 7, color: "#fff", weight: 3, fillColor: "#0B1220", fillOpacity: 1 }).addTo(layer).bindTooltip("You", { permanent: true, direction: "top", className: "tag me", offset: [0, -8] });
   SHOPS.forEach((s) => {
     const f = found(l, s.id), full = f === n, cur = s.id === st.shop;
-    L.circleMarker(s.ll, { radius: 8, color: "#fff", weight: 2.5, fillColor: full ? "#7B5CFF" : "#1F6BFF", fillOpacity: 1 }).addTo(layer)
-      .bindTooltip(`${s.n.replace("Migros ", "")}<small>${f} of ${n}${full ? " ✓" : ""}</small>`, { permanent: true, direction: s.dir, className: "tag" + (cur ? " cur" : ""), offset: s.dir === "left" ? [-9, 0] : s.dir === "right" ? [9, 0] : [0, s.dir === "top" ? -9 : 9] });
+    const m = L.circleMarker(s.ll, { radius: cur ? 10 : 8, color: "#fff", weight: 2.5, fillColor: full ? "#7B5CFF" : "#1F6BFF", fillOpacity: 1 }).addTo(layer)
+      .bindTooltip(`${s.n.replace("Migros ", "")}<small>${f} of ${n}${full ? " ✓" : ""}</small>`, { permanent: true, interactive: true, direction: s.dir, className: "tag" + (cur ? " cur" : ""), offset: s.dir === "left" ? [-9, 0] : s.dir === "right" ? [9, 0] : [0, s.dir === "top" ? -9 : 9] });
+    // the dot and its label both select the shop
+    L.circleMarker(s.ll, { radius: 20, stroke: false, fillOpacity: 0 }).addTo(layer).on("click", () => pickShop(s.id)); // bigger touch target
+    m.on("click", () => pickShop(s.id));
+    const el = m.getTooltip().getElement(); if (el) { el.style.cursor = "pointer"; el.setAttribute("role", "button"); el.setAttribute("aria-label", "Choose " + s.n); L.DomEvent.on(el, "click", (e) => { L.DomEvent.stop(e); pickShop(s.id); }); }
   });
   map.fitBounds(L.latLngBounds([ME, ...SHOPS.map((s) => s.ll)]), { padding: [44, 30] });
 }
